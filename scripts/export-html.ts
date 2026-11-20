@@ -13,7 +13,7 @@
  *      both languages in one page (#en / #el), for the hosted preview link
  */
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import * as cheerio from "cheerio";
 import sharp from "sharp";
@@ -98,11 +98,14 @@ async function posterWebp(file: string): Promise<Buffer> {
 }
 const videoFiles = new Set<string>();
 
-type Mode = { kind: "standalone" } | { kind: "artifact" };
+/** standalone: one file, everything inlined · artifact: both languages in one page · pages: static site (GitHub Pages) */
+type Mode = { kind: "standalone" } | { kind: "artifact" } | { kind: "pages"; prefix: string };
 
 /** Turn one rendered page's <body> into static markup. */
 async function processBody(html: string, locale: L, mode: Mode): Promise<string> {
   const $ = cheerio.load(html);
+  // relative asset path (pages for /el/ live one folder deeper)
+  const rel = (p: string) => (mode.kind === "pages" ? mode.prefix + p : p);
   const messages = JSON.parse(await readFile(path.join(ROOT, `content/messages/${locale}.json`), "utf8"));
   const labels = { pause: messages.home.hero.pauseVideo as string, play: messages.home.hero.playVideo as string };
   $("script, noscript, template, link").remove();
@@ -114,7 +117,7 @@ async function processBody(html: string, locale: L, mode: Mode): Promise<string>
     const file = decodeURIComponent(src.attr("srcset") ?? "").match(/\/video\/([^&\s]+\.jpg)/)?.[1];
     if (!file) continue;
     const buf = await posterWebp(file);
-    src.attr("srcset", mode.kind === "standalone" ? toDataUri(buf, "image/webp") : `video/${file.split(".")[0]}.webp`);
+    src.attr("srcset", mode.kind === "standalone" ? toDataUri(buf, "image/webp") : rel(`video/${file.split(".")[0]}.webp`));
   }
   for (const el of $("video").toArray()) {
     const v = $(el);
@@ -124,7 +127,7 @@ async function processBody(html: string, locale: L, mode: Mode): Promise<string>
       if (!file) continue;
       videoFiles.add(file);
       // standalone files sit in preview/, next to the repo's public/ folder
-      v.attr(attr, mode.kind === "standalone" ? `../public/video/${file}` : `video/${file}`);
+      v.attr(attr, mode.kind === "standalone" ? `../public/video/${file}` : rel(`video/${file}`));
     }
   }
 
@@ -134,7 +137,7 @@ async function processBody(html: string, locale: L, mode: Mode): Promise<string>
     const vposter = decodeURIComponent(src).match(/\/video\/([^&]+\.jpg)/)?.[1];
     if (vposter) {
       const buf = await posterWebp(vposter);
-      img.attr("src", mode.kind === "standalone" ? toDataUri(buf, "image/webp") : `video/${vposter.split(".")[0]}.webp`);
+      img.attr("src", mode.kind === "standalone" ? toDataUri(buf, "image/webp") : rel(`video/${vposter.split(".")[0]}.webp`));
       img.removeAttr("srcset").removeAttr("sizes").removeAttr("fetchpriority");
       continue;
     }
@@ -146,7 +149,7 @@ async function processBody(html: string, locale: L, mode: Mode): Promise<string>
       img.attr("src", toDataUri(await photoWebp(file), "image/webp"));
     } else {
       await photoWebp(file);
-      img.attr("src", `photos/${id}.webp`);
+      img.attr("src", rel(`photos/${id}.webp`));
     }
     img.removeAttr("srcset").removeAttr("sizes").removeAttr("fetchpriority");
   }
@@ -174,7 +177,9 @@ async function processBody(html: string, locale: L, mode: Mode): Promise<string>
     if (target === "/en" || target === "/el") {
       const l = target.slice(1) as L;
       if (hash) a.attr("href", `#${hash}${suffix}`);
-      else a.attr("href", mode.kind === "standalone" ? `cape-avra-${l}.html` : `#${l}`);
+      else if (mode.kind === "standalone") a.attr("href", `cape-avra-${l}.html`);
+      else if (mode.kind === "pages") a.attr("href", l === "en" ? mode.prefix || "./" : `${mode.prefix}el/`);
+      else a.attr("href", `#${l}`);
     } else {
       a.attr("href", "#").attr("data-soon", "");
     }
@@ -365,7 +370,52 @@ async function main() {
       console.log(`✓ preview/cape-avra-${l}.html  ${(doc.length / 1024 / 1024).toFixed(1)} MB`);
     }
 
-    // 2) Hosted preview: both languages in one page, photos as sibling files
+    // 2) Static site for GitHub Pages: / (EN) and /el/ (EL), assets as cached files
+    const PAGES = path.join(ROOT, "dist/pages");
+    await rm(PAGES, { recursive: true, force: true });
+    for (const d of ["assets", "photos", "video", "el"]) await mkdir(path.join(PAGES, d), { recursive: true });
+    await writeFile(path.join(PAGES, "assets/site.css"), css);
+    await writeFile(path.join(PAGES, "assets/icon.svg"), await readFile(path.join(ROOT, "src/app/icon.svg")));
+    for (const l of LOCALES) {
+      const prefix = l === "en" ? "" : "../";
+      const $ = cheerio.load(pages[l]);
+      const title = $("title").text();
+      const desc = $('meta[name="description"]').attr("content") ?? "";
+      const body = await processBody(pages[l], l, { kind: "pages", prefix });
+      const doc = `<!doctype html>
+<html lang="${l}" data-active-lang="${l}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${title}</title>
+<meta name="description" content="${desc.replace(/"/g, "&quot;")}">
+<!-- preview build with placeholder details: keep it out of search engines -->
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#1b2433">
+<link rel="icon" href="${prefix}assets/icon.svg" type="image/svg+xml">
+<link rel="alternate" hreflang="en" href="${prefix || "./"}">
+<link rel="alternate" hreflang="el" href="${prefix}el/">
+<link rel="stylesheet" href="${prefix}assets/site.css">
+</head>
+<body>${body}${runtimeScript(SOON, false)}</body>
+</html>
+`;
+      await writeFile(path.join(PAGES, l === "en" ? "index.html" : "el/index.html"), doc);
+    }
+    for (const [file, buf] of photoCache) await writeFile(path.join(PAGES, "photos", `${file.split(".")[0]}.webp`), buf);
+    for (const [file, buf] of posterCache) await writeFile(path.join(PAGES, "video", `${file.split(".")[0]}.webp`), buf);
+    for (const file of videoFiles) {
+      await writeFile(path.join(PAGES, "video", file), await readFile(path.join(ROOT, "public/video", file)));
+    }
+    await writeFile(path.join(PAGES, ".nojekyll"), "");
+    await writeFile(path.join(PAGES, "robots.txt"), "User-agent: *\nDisallow: /\n");
+    await writeFile(
+      path.join(PAGES, "404.html"),
+      `<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex"><title>Cape Avra</title><script>location.replace(location.pathname.split("/").slice(0, 2).join("/") + "/")</script>`,
+    );
+    console.log("✓ dist/pages/  (GitHub Pages: / = EN, /el/ = EL)");
+
+    // 3) Hosted preview: both languages in one page, photos as sibling files
     const blocks: string[] = [];
     for (const l of LOCALES) {
       const title = cheerio.load(pages[l])("title").text();

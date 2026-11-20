@@ -10,7 +10,8 @@
     "photos": "tsx scripts/photos.ts",
     "brand": "tsx scripts/brand.ts",
     "export:html": "next build && tsx scripts/export-html.ts",
-    "video": "tsx scripts/video.ts"
+    "video": "tsx scripts/video.ts",
+    "deploy:pages": "npm run export:html && tsx scripts/deploy-pages.ts"
   },
   "dependencies": {
     "@fontsource/commissioner": "^5.3.0",

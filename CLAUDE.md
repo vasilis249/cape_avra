@@ -97,9 +97,14 @@ npm run lint
 npm run photos   # after editing content/photos.ts or adding raw photos
 npm run brand    # regenerate logo assets
 npm run video    # regenerate hero video (needs ffmpeg: libx264, libvpx-vp9, vidstab, zscale)
-npm run export:html  # build + static HTML preview → preview/cape-avra-{en,el}.html
-                     # (+ preview/.artifact/ for the hosted preview link, git-ignored)
+npm run export:html  # build + static HTML preview → preview/cape-avra-{en,el}.html,
+                     # dist/pages/ (GitHub Pages) and preview/.artifact/ (both git-ignored)
+npm run deploy:pages # export:html + push dist/pages to the gh-pages branch (GitHub Pages)
 ```
 
-Hosted preview (private, owner's claude.ai): https://claude.ai/artifact/RM4Wuck6XbSUQ26LCV5XNv
+Public static preview (GitHub Pages, `noindex`): https://vasilis249.github.io/cape_avra/ (Greek: `/el/`).
+It is a static export of the Home page only; the real site (booking, payments, admin) needs a
+server and is deployed to Vercel from Phase 2. Run `npm run deploy:pages` after changes.
+
+Private preview (owner's claude.ai): https://claude.ai/artifact/RM4Wuck6XbSUQ26LCV5XNv
 (append `#el` for Greek). Re-run `npm run export:html` and republish after changes.

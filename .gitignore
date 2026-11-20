@@ -48,3 +48,6 @@ next-env.d.ts
 
 # video pipeline cache
 /.cache/
+
+# static site output (deployed to the gh-pages branch)
+/dist/
