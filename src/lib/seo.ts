@@ -16,7 +16,8 @@ export function alternatesFor(href: AppPathname, locale: Locale): Metadata["alte
   return { canonical: siteUrl + getPathname({ href, locale }), languages };
 }
 
-export function openGraphFor(locale: Locale, title: string, description: string, image: { url: string; width: number; height: number; alt: string }) {
+/** Open Graph text fields. The share image comes from app/[locale]/opengraph-image.tsx (1200×630). */
+export function openGraphFor(locale: Locale, title: string, description: string) {
   return {
     type: "website" as const,
     siteName: "Cape Avra",
@@ -24,6 +25,7 @@ export function openGraphFor(locale: Locale, title: string, description: string,
     description,
     locale: ogLocale[locale],
     alternateLocale: routing.locales.filter((l) => l !== locale).map((l) => ogLocale[l]),
-    images: [image],
+    // child segments that set openGraph replace the inherited file-based image, so link it explicitly
+    images: [{ url: `/${locale}/opengraph-image`, width: 1200, height: 630, alt: "Cape Avra" }],
   };
 }

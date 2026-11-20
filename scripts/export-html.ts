@@ -1,22 +1,26 @@
 /**
- * Exports the built Home page (EN + EL) as plain, self-contained HTML:
- * no Node, no React runtime. CSS, fonts and photos are embedded, and a
- * small vanilla script replaces the interactive parts (header on scroll,
- * mobile menu, scroll reveals, sticky booking bar).
+ * Exports the built site as plain static HTML: no Node, no React runtime.
+ * A small vanilla script replaces the interactive parts (header on scroll,
+ * mobile menu, scroll reveals, sticky booking bar, hero video, gallery
+ * filters + photo viewer). Forms need a server, so static pages show a
+ * note with the contact email instead.
  *
  *   npm run export:html        (builds first, then exports)
  *
  * Outputs
  *  - preview/cape-avra-en.html, preview/cape-avra-el.html
  *      one file per language, everything inlined (open by double-click)
+ *  - dist/pages/   every page in both languages, for GitHub Pages (git-ignored)
  *  - preview/.artifact/index.html + photos/*.webp   (git-ignored)
- *      both languages in one page (#en / #el), for the hosted preview link
+ *      Home in both languages in one page (#en / #el), for the private preview link
  */
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import * as cheerio from "cheerio";
 import sharp from "sharp";
+import { routing } from "../src/i18n/routing";
+import { siteConfig } from "../content/site.config";
 
 const ROOT = process.cwd();
 const PORT = Number(process.env.EXPORT_PORT ?? 3197);
@@ -30,6 +34,23 @@ const SOON: Record<L, string> = {
   en: "This page arrives in the next phase of the build.",
   el: "Αυτή η σελίδα έρχεται στην επόμενη φάση.",
 };
+
+const STATIC_FORM: Record<L, string> = {
+  en: "This preview is a static copy of the site, so the form is switched off here. Write to us at {email} and we will reply personally.",
+  el: "Αυτή η προεπισκόπηση είναι στατικό αντίγραφο του ιστότοπου, οπότε η φόρμα δεν λειτουργεί εδώ. Γράψτε μας στο {email} και θα σας απαντήσουμε προσωπικά.",
+};
+
+/** Every page: internal pathname × locale → rendered URL and static output folder. */
+type Route = { url: string; out: string; locale: L };
+const ROUTES: Route[] = Object.entries(routing.pathnames).flatMap(([, v]) =>
+  LOCALES.map((l) => {
+    const slug = typeof v === "string" ? v : v[l];
+    const url = `/${l}${slug === "/" ? "" : slug}`;
+    const out = `${l === "en" ? "" : "el/"}${slug.replace(/^\//, "")}`.replace(/\/$/, "");
+    return { url, out, locale: l };
+  }),
+);
+const outByUrl = new Map(ROUTES.map((r) => [r.url, r.out]));
 
 /* ------------------------------------------------------------- helpers */
 
@@ -72,6 +93,7 @@ async function buildCss(html: string): Promise<string> {
   css += `:root{${vars}}`;
   // Content is visible at rest; only blocks below the fold (marked by the script) fade in.
   css += `.reveal{opacity:1;transform:none}.reveal.is-pending{opacity:0;transform:translate3d(0,1.25rem,0)}.reveal.is-pending[data-revealed]{opacity:1;transform:none}`;
+  css += `.x-lightbox{margin:0;width:100vw;height:100dvh;max-width:none;max-height:none;padding:0;border:0;background:rgb(27 36 51/.97);color:var(--color-salt)}.x-lightbox::backdrop{background:rgb(27 36 51/.8)}.x-lb-top{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.25rem;font-size:.8125rem;letter-spacing:.14em;text-transform:uppercase}.x-lb-close{min-height:44px;padding:0 .5rem;letter-spacing:.14em;text-transform:uppercase}.x-lb-fig{height:calc(100dvh - 5rem);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 1rem 1rem;margin:0}.x-lb-fig img{max-width:100%;min-height:0;flex:1;object-fit:contain}.x-lb-fig figcaption{margin-top:1rem;max-width:42rem;text-align:center;font-size:.875rem;color:rgb(246 242 234/.8)}.x-lb-nav{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;font-size:2.25rem;line-height:1;color:rgb(246 242 234/.8)}.x-lb-prev{left:.5rem}.x-lb-next{right:.5rem}`;
   css += `.soon-toast{position:fixed;left:50%;bottom:max(1.25rem,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:70;background:var(--color-night);color:var(--color-salt);padding:.75rem 1.25rem;font-size:.875rem;max-width:calc(100% - 2rem);text-align:center}`;
   return css;
 }
@@ -99,7 +121,7 @@ async function posterWebp(file: string): Promise<Buffer> {
 const videoFiles = new Set<string>();
 
 /** standalone: one file, everything inlined · artifact: both languages in one page · pages: static site (GitHub Pages) */
-type Mode = { kind: "standalone" } | { kind: "artifact" } | { kind: "pages"; prefix: string };
+type Mode = { kind: "standalone" } | { kind: "artifact" } | { kind: "pages"; prefix: string; route: Route };
 
 /** Turn one rendered page's <body> into static markup. */
 async function processBody(html: string, locale: L, mode: Mode): Promise<string> {
@@ -168,17 +190,38 @@ async function processBody(html: string, locale: L, mode: Mode): Promise<string>
     b.attr("data-label-pause", labels.pause).attr("data-label-play", labels.play);
   });
 
+  // every export is static: forms can't submit, and no consent banner/analytics is shipped
+  $("form").each((_, e) => {
+    const email = siteConfig.contact.email;
+    const note = STATIC_FORM[locale].replace("{email}", `<a href="mailto:${email}" class="text-ionian underline underline-offset-4">${email}</a>`);
+    $(e).replaceWith(`<p class="bg-sand p-8 text-ink-soft sm:p-10">${note}</p>`);
+  });
+  $("[data-cookie-settings]").closest("li").remove();
+
   $("a[href]").each((_, e) => {
     const a = $(e);
     const href = a.attr("href")!;
     if (!href.startsWith("/")) return;
     const [p, hash] = href.split("#");
     const target = p.replace(/\/$/, "");
+    if (mode.kind === "pages") {
+      const out = outByUrl.get(target);
+      if (out === undefined) {
+        a.attr("href", "#").attr("data-soon", "");
+        return;
+      }
+      if (out === mode.route.out && hash) {
+        a.attr("href", `#${hash}`);
+        return;
+      }
+      const rel = (mode.prefix + (out ? `${out}/` : "")) || "./";
+      a.attr("href", rel + (hash ? `#${hash}` : ""));
+      return;
+    }
     if (target === "/en" || target === "/el") {
       const l = target.slice(1) as L;
       if (hash) a.attr("href", `#${hash}${suffix}`);
       else if (mode.kind === "standalone") a.attr("href", `cape-avra-${l}.html`);
-      else if (mode.kind === "pages") a.attr("href", l === "en" ? mode.prefix || "./" : `${mode.prefix}el/`);
       else a.attr("href", `#${l}`);
     } else {
       a.attr("href", "#").attr("data-soon", "");
@@ -326,6 +369,66 @@ function runtimeScript(soon: Record<string, string>, multiLang: boolean) {
   window.addEventListener("hashchange", pauseHiddenVideos);
   if (document.readyState === "complete") setupVideos(); else window.addEventListener("load", setupVideos);
 
+  // gallery: filters + photo viewer (mirrors components/media/GalleryGrid.tsx)
+  function setupGallery() {
+    const bar = document.querySelector("[data-gallery-filters]");
+    const grid = document.querySelector("[data-gallery-grid]");
+    if (!bar || !grid) return;
+    const ON = ["border-ionian", "bg-ionian", "text-salt"], OFF = ["border-limestone", "text-ink", "hover:border-ionian"];
+    const empty = document.createElement("p");
+    empty.className = "linen mt-10 flex min-h-64 items-center justify-center p-10 text-center font-display text-xl text-ink-soft";
+    empty.hidden = true;
+    grid.after(empty);
+    const items = [...grid.querySelectorAll("li[data-category]")];
+    bar.querySelectorAll("button[data-filter]").forEach((b) => b.addEventListener("click", () => {
+      const f = b.dataset.filter;
+      bar.querySelectorAll("button[data-filter]").forEach((x) => {
+        const on = x === b;
+        x.setAttribute("aria-pressed", String(on));
+        x.classList.remove(...(on ? OFF : ON)); x.classList.add(...(on ? ON : OFF));
+        const n = x.querySelector("span"); if (n) { n.classList.toggle("text-salt/75", on); n.classList.toggle("text-ink-soft", !on); }
+      });
+      let shown = 0;
+      items.forEach((li) => { const v = f === "all" || li.dataset.category === f; li.hidden = !v; if (v) shown++; });
+      grid.hidden = shown === 0;
+      empty.hidden = shown !== 0;
+      empty.textContent = bar.dataset["empty" + f[0].toUpperCase() + f.slice(1)] || "";
+    }));
+
+    const L = { close: bar.dataset.labelClose, prev: bar.dataset.labelPrev, next: bar.dataset.labelNext, counter: bar.dataset.labelCounter };
+    const dlg = document.createElement("dialog");
+    dlg.className = "x-lightbox";
+    dlg.innerHTML = '<div class="x-lb-top"><span class="x-lb-count" aria-live="polite"></span><button type="button" class="x-lb-close"></button></div>' +
+      '<figure class="x-lb-fig"><img alt=""><figcaption></figcaption></figure>' +
+      '<button type="button" class="x-lb-nav x-lb-prev">&#8249;</button><button type="button" class="x-lb-nav x-lb-next">&#8250;</button>';
+    document.body.appendChild(dlg);
+    dlg.querySelector(".x-lb-close").textContent = L.close;
+    dlg.querySelector(".x-lb-prev").setAttribute("aria-label", L.prev);
+    dlg.querySelector(".x-lb-next").setAttribute("aria-label", L.next);
+    let list = [], i = 0, opener = null;
+    const show = () => {
+      const li = list[i], img = li.querySelector("img");
+      const big = dlg.querySelector("img");
+      big.src = img.currentSrc || img.src; big.alt = li.dataset.alt || "";
+      dlg.querySelector("figcaption").textContent = li.dataset.alt || "";
+      dlg.querySelector(".x-lb-count").textContent = L.counter.replace("{current}", i + 1).replace("{total}", list.length);
+    };
+    const step = (d) => { i = (i + d + list.length) % list.length; show(); };
+    items.forEach((li) => li.querySelector("button")?.addEventListener("click", (e) => {
+      list = items.filter((x) => !x.hidden); i = list.indexOf(li); opener = e.currentTarget; show(); dlg.showModal();
+    }));
+    dlg.querySelector(".x-lb-close").addEventListener("click", () => dlg.close());
+    dlg.querySelector(".x-lb-prev").addEventListener("click", () => step(-1));
+    dlg.querySelector(".x-lb-next").addEventListener("click", () => step(1));
+    dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
+    dlg.addEventListener("keydown", (e) => { if (e.key === "ArrowRight") step(1); if (e.key === "ArrowLeft") step(-1); });
+    dlg.addEventListener("close", () => opener?.focus());
+    let x0 = null;
+    dlg.addEventListener("touchstart", (e) => (x0 = e.touches[0].clientX), { passive: true });
+    dlg.addEventListener("touchend", (e) => { if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 50) step(dx < 0 ? 1 : -1); x0 = null; });
+  }
+  setupGallery();
+
   window.addEventListener("scroll", onScroll, { passive: true });
   window.addEventListener("hashchange", setLang);
   setLang();
@@ -370,20 +473,23 @@ async function main() {
       console.log(`✓ preview/cape-avra-${l}.html  ${(doc.length / 1024 / 1024).toFixed(1)} MB`);
     }
 
-    // 2) Static site for GitHub Pages: / (EN) and /el/ (EL), assets as cached files
+    // 2) Static site for GitHub Pages: every page, / = EN, /el/... = EL, shared asset files
     const PAGES = path.join(ROOT, "dist/pages");
     await rm(PAGES, { recursive: true, force: true });
-    for (const d of ["assets", "photos", "video", "el"]) await mkdir(path.join(PAGES, d), { recursive: true });
+    for (const d of ["assets", "photos", "video"]) await mkdir(path.join(PAGES, d), { recursive: true });
     await writeFile(path.join(PAGES, "assets/site.css"), css);
     await writeFile(path.join(PAGES, "assets/icon.svg"), await readFile(path.join(ROOT, "src/app/icon.svg")));
-    for (const l of LOCALES) {
-      const prefix = l === "en" ? "" : "../";
-      const $ = cheerio.load(pages[l]);
+    for (const [i, route] of ROUTES.entries()) {
+      const sibling = ROUTES[i % 2 === 0 ? i + 1 : i - 1]; // same page, other language
+      const prefix = "../".repeat(route.out ? route.out.split("/").length : 0);
+      const href = (r: Route) => (prefix + (r.out ? `${r.out}/` : "")) || "./";
+      const html = route.url === "/en" || route.url === "/el" ? pages[route.locale] : await (await fetch(BASE + encodeURI(route.url))).text();
+      const $ = cheerio.load(html);
       const title = $("title").text();
       const desc = $('meta[name="description"]').attr("content") ?? "";
-      const body = await processBody(pages[l], l, { kind: "pages", prefix });
+      const body = await processBody(html, route.locale, { kind: "pages", prefix, route });
       const doc = `<!doctype html>
-<html lang="${l}" data-active-lang="${l}">
+<html lang="${route.locale}" data-active-lang="${route.locale}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -393,14 +499,15 @@ async function main() {
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#1b2433">
 <link rel="icon" href="${prefix}assets/icon.svg" type="image/svg+xml">
-<link rel="alternate" hreflang="en" href="${prefix || "./"}">
-<link rel="alternate" hreflang="el" href="${prefix}el/">
+<link rel="alternate" hreflang="${route.locale}" href="${href(route)}">
+<link rel="alternate" hreflang="${sibling.locale}" href="${href(sibling)}">
 <link rel="stylesheet" href="${prefix}assets/site.css">
 </head>
 <body>${body}${runtimeScript(SOON, false)}</body>
 </html>
 `;
-      await writeFile(path.join(PAGES, l === "en" ? "index.html" : "el/index.html"), doc);
+      await mkdir(path.join(PAGES, route.out), { recursive: true });
+      await writeFile(path.join(PAGES, route.out, "index.html"), doc);
     }
     for (const [file, buf] of photoCache) await writeFile(path.join(PAGES, "photos", `${file.split(".")[0]}.webp`), buf);
     for (const [file, buf] of posterCache) await writeFile(path.join(PAGES, "video", `${file.split(".")[0]}.webp`), buf);
@@ -413,7 +520,7 @@ async function main() {
       path.join(PAGES, "404.html"),
       `<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex"><title>Cape Avra</title><script>location.replace(location.pathname.split("/").slice(0, 2).join("/") + "/")</script>`,
     );
-    console.log("✓ dist/pages/  (GitHub Pages: / = EN, /el/ = EL)");
+    console.log(`✓ dist/pages/  ${ROUTES.length} pages (GitHub Pages: / = EN, /el/ = EL)`);
 
     // 3) Hosted preview: both languages in one page, photos as sibling files
     const blocks: string[] = [];

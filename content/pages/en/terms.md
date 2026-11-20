@@ -28,7 +28,7 @@ These terms will also be shown at checkout and confirmed by email, so you always
 
 - Up to {{guests}} guests stay overnight.
 - Check-in from {{checkIn}}, check-out by {{checkOut}}.
-- Please read the house rules on our [FAQ page](../faq).
+- Please read the house rules on our [FAQ page](/en/faq).
 
 ## Contact
 

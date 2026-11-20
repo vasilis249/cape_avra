@@ -17,7 +17,7 @@ type PlaceKey = "beach" | "prevezaTown" | "airport" | "nikopolis" | "lefkada" | 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await currentLocale();
   const t = await getTranslations({ locale, namespace: "meta.pages.location" });
-  return pageMetadata({ locale, href: "/location", title: t("title"), description: t("description"), photo: "sun-on-the-water" });
+  return pageMetadata({ locale, href: "/location", title: t("title"), description: t("description") });
 }
 
 export default async function LocationPage() {

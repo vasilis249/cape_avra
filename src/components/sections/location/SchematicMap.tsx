@@ -12,6 +12,9 @@ const RINGS = [15, 30, 45, 60];
 /** square-root scale: gives nearby places room while rings still read as 15/30/45/60 min */
 const radius = (minutes: number) => Math.sqrt(minutes / 60) * RMAX;
 
+/** Greek capitals drop the tonos (ΛΕΠΤΑ, not ΛΕΠΤΆ) */
+const upper = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+
 const polar = (bearing: number, r: number) => {
   const a = (bearing * Math.PI) / 180;
   return { x: C + r * Math.sin(a), y: C - r * Math.cos(a) };
@@ -54,7 +57,7 @@ export async function SchematicMap() {
           <g key={m}>
             <circle cx={C} cy={C} r={radius(m)} fill="none" stroke="var(--color-limestone)" strokeWidth="0.8" strokeDasharray={m === 60 ? undefined : "2 5"} />
             <text x={C + 6} y={C - radius(m) - 6} className="fill-ink-soft" fontSize="11" letterSpacing="1.2">
-              {t("ring", { count: m }).toUpperCase()}
+              {upper(t("ring", { count: m }))}
             </text>
           </g>
         ))}

@@ -19,7 +19,6 @@ export async function generateMetadata(): Promise<Metadata> {
     href: "/the-house",
     title: t("title"),
     description: t("description", { guests: capacity.guests, bedrooms: capacity.bedrooms }),
-    photo: "garden-sunset-lawn",
   });
 }
 

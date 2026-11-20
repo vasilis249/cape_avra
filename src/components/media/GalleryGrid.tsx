@@ -70,12 +70,24 @@ export function GalleryGrid({ photos, labels }: { photos: GalleryPhoto[]; labels
 
   return (
     <>
-      <div role="group" aria-label={labels.filterLabel} className="flex flex-wrap gap-2">
+      <div
+        role="group"
+        aria-label={labels.filterLabel}
+        className="flex flex-wrap gap-2"
+        data-gallery-filters=""
+        data-empty-house={labels.empty.house}
+        data-empty-surroundings={labels.empty.surroundings}
+        data-label-close={labels.lightbox.close}
+        data-label-prev={labels.lightbox.prev}
+        data-label-next={labels.lightbox.next}
+        data-label-counter={labels.lightbox.counter}
+      >
         {CATEGORIES.map((c) => (
           <button
             key={c}
             type="button"
             aria-pressed={filter === c}
+            data-filter={c}
             onClick={() => setFilter(c)}
             className={cn(
               "inline-flex min-h-11 items-center gap-2 border px-4 text-[0.8125rem] tracking-[0.14em] uppercase transition-colors",
@@ -93,9 +105,9 @@ export function GalleryGrid({ photos, labels }: { photos: GalleryPhoto[]; labels
           {filter !== "all" && labels.empty[filter]}
         </p>
       ) : (
-        <ul className="mt-10 columns-1 gap-4 sm:columns-2 lg:columns-3 [&>li]:mb-4">
+        <ul data-gallery-grid="" className="mt-10 columns-1 gap-4 sm:columns-2 lg:columns-3 [&>li]:mb-4">
           {visible.map((p, i) => (
-            <li key={p.id} className="break-inside-avoid">
+            <li key={p.id} className="break-inside-avoid" data-category={p.category} data-alt={p.alt}>
               <button
                 type="button"
                 onClick={(e) => open(i, e.currentTarget)}
@@ -155,6 +167,9 @@ export function GalleryGrid({ photos, labels }: { photos: GalleryPhoto[]; labels
                   fill
                   sizes="100vw"
                   quality={80}
+                  loading="eager"
+                  placeholder="blur"
+                  blurDataURL={current.blurDataURL}
                   className="object-contain"
                 />
               </div>

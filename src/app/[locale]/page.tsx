@@ -13,7 +13,6 @@ import { Reviews } from "@/components/sections/home/Reviews";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { getPathname } from "@/i18n/navigation";
 import { isLocale, type Locale } from "@/i18n/routing";
-import { getPhoto } from "@/lib/photos";
 import { alternatesFor, openGraphFor, siteUrl } from "@/lib/seo";
 import { vacationRentalJsonLd } from "@/lib/structured-data";
 import { capacity } from "@content/property";
@@ -36,18 +35,12 @@ async function description(locale: Locale) {
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocaleOrDefault();
   const t = await getTranslations({ locale, namespace: "meta" });
-  const hero = getPhoto("blue-hour-agaves", locale);
   const desc = await description(locale);
   return {
     title: { absolute: t("siteTitle") },
     description: desc,
     alternates: alternatesFor("/", locale),
-    openGraph: openGraphFor(locale, t("siteTitle"), desc, {
-      url: hero.src,
-      width: hero.width,
-      height: hero.height,
-      alt: t("ogAlt"),
-    }),
+    openGraph: openGraphFor(locale, t("siteTitle"), desc),
   };
 }
 

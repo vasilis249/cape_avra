@@ -19,7 +19,6 @@ export async function generateMetadata(): Promise<Metadata> {
     href: "/book",
     title: t("title"),
     description: t("description", { season: siteConfig.earlyBookingSeason[locale] }),
-    photo: "blue-hour-agaves",
   });
 }
 

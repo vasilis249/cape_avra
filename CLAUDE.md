@@ -9,8 +9,10 @@ before using an API from memory.
 
 ## Current phase
 
-- [x] **Phase 1**: setup, brand, design system, Home page (EN/EL) ← *done, awaiting owner review*
-- [ ] Phase 2: remaining pages, preview/waitlist mode (form + DB + notification), legal pages, sitemap/robots, OG images, cookie banner, Vercel preview deploy
+- [x] **Phase 1**: setup, brand, design system, Home page (EN/EL), hero video
+- [x] **Phase 2**: all pages, early-booking + contact forms (Supabase + Resend, local fallbacks), legal drafts,
+      cookie banner + consent-gated analytics, sitemap/robots, OG images, GitHub Pages static preview
+      ← *done, awaiting owner review. Vercel deploy needs the owner's account: see docs/DEPLOY.md*
 - [ ] Phase 3: booking engine, iCal 2-way sync, emails
 - [ ] Phase 4: Stripe (test mode), webhooks, refunds
 - [ ] Phase 5: admin panel
@@ -41,7 +43,12 @@ scripts/photos.ts         npm run photos → public/photos/*.jpg + src/generated
 scripts/brand.ts          npm run brand  → wordmark/monogram paths, favicon, avatars
 scripts/video.ts          npm run video  → public/video/* (mp4+webm, landscape+portrait, posters) + src/generated/video.json
 scripts/export-html.ts    npm run export:html → static HTML preview (see Commands)
+content/pages/<locale>/*.md  legal pages (Markdown + front matter, {{placeholders}} from config)
+content/location.ts       map bearings, beaches, days out, tavernas (empty = "coming soon")
 src/app/[locale]/         pages (root layout lives here; locale is a root param)
+src/lib/leads/            form schemas (zod), server actions, storage (Supabase REST / .data fallback)
+supabase/migrations/      SQL for the database (leads table, RLS on, no public policies)
+docs/DEPLOY.md            Vercel / Supabase / Resend setup for the owner
 src/i18n/                 routing (translated slugs), navigation, request config
 src/proxy.ts              next-intl locale negotiation (Next 16 Proxy)
 src/components/{brand,ui,media,motion,layout,sections,seo}
@@ -72,6 +79,14 @@ src/lib/                  photos, seo (hreflang/OG), structured-data, cn
   Don't fade the hero headline in: it is the LCP element.
 - **Honesty rules**: no fake reviews, no "private beach" (Greek beaches are public), no pool
   (there isn't one), no ratings/prices in structured data until real.
+- **Forms**: server actions in `src/lib/leads/actions.ts`. Anti-spam = honeypot `website`, time since page
+  load (attached at submit, never reset on re-render), per-IP rate limit. Values return on error (React
+  resets forms after actions). Emails go out in `after()`. Never drop a real submission silently.
+- **Legal/long text**: Markdown in `content/pages`; `draft: true` shows a "draft" note. Loader is `"use cache"`.
+- **Static export** (`scripts/export-html.ts`): any new interactive client component needs a vanilla
+  equivalent in the export runtime script (see gallery), or it is inert on GitHub Pages.
+- **OG images**: `app/[locale]/opengraph-image.tsx`; pages link it explicitly via `openGraphFor()`
+  (a child `openGraph` would otherwise drop the inherited image).
 - Secrets only in `.env.local` (git-ignored); document every variable in `.env.example`.
 
 ## Design tokens (src/app/globals.css)
@@ -83,6 +98,8 @@ both with Greek, self-hosted by next/font. Motif: fine-line flowering agave stal
 
 ## Open items from the owner (TODO(owner) in content files)
 
+Operator name / ΑΦΜ for privacy & imprint (`siteConfig.legal`) · legal texts reviewed by a lawyer ·
+bed configuration (`property.bedrooms`) · check-in/out times · favourite tavernas (`content/location.ts`) ·
 Confirm capacity 8/4/3 · driving times (estimates marked `confirmed: false`) · contact email/phone
 (WhatsApp/Viber) · ΑΜΑ number · garden photos without the house · interior photos after renovation ·
 whether the beach is reached via the garden gate (copy says "your own gate to the sea").

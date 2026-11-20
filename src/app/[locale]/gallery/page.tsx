@@ -11,7 +11,7 @@ import { photos } from "@content/photos";
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await currentLocale();
   const t = await getTranslations({ locale, namespace: "meta.pages.gallery" });
-  return pageMetadata({ locale, href: "/gallery", title: t("title"), description: t("description"), photo: "sunset-clouds" });
+  return pageMetadata({ locale, href: "/gallery", title: t("title"), description: t("description") });
 }
 
 export default async function GalleryPage() {

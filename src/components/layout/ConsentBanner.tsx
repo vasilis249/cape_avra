@@ -87,7 +87,7 @@ export function ConsentBanner({
 /** Footer link that reopens the banner. */
 export function CookieSettingsButton({ label, className }: { label: string; className?: string }) {
   return (
-    <button type="button" onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))} className={className}>
+    <button type="button" data-cookie-settings="" onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))} className={className}>
       {label}
     </button>
   );
