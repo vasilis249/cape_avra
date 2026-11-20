@@ -4,6 +4,7 @@ import { locale as rootLocale } from "next/root-params";
 import { notFound } from "next/navigation";
 import { NextIntlClientProvider } from "next-intl";
 import { getTranslations } from "next-intl/server";
+import { ConsentBanner } from "@/components/layout/ConsentBanner";
 import { MobileBookBar } from "@/components/layout/MobileBookBar";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { isLocale, routing } from "@/i18n/routing";
@@ -78,6 +79,15 @@ export default async function LocaleLayout({ children }: LayoutProps<"/[locale]"
           <MobileBookBar
             label={isPreview ? t("cta.earlyBooking") : t("cta.checkAvailability")}
             note={t("cta.bookDirectShort", { season: siteConfig.earlyBookingSeason[locale] })}
+          />
+          <ConsentBanner
+            labels={{
+              label: t("cookies.label"),
+              text: t("cookies.text"),
+              accept: t("cookies.accept"),
+              decline: t("cookies.decline"),
+              policy: t("cookies.policy"),
+            }}
           />
         </NextIntlClientProvider>
       </body>

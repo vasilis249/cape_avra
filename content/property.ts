@@ -23,6 +23,28 @@ export const spaces: { key: "living" | "kitchen" | "bedrooms" | "bathrooms"; pho
 ];
 
 /**
+ * Bedrooms and beds. Leave empty until the renovation fixes the layout;
+ * the page then says the bed configuration will follow.
+ * Example entry: { name: { en: "Bedroom 1", el: "Υπνοδωμάτιο 1" }, beds: { en: "Double bed", el: "Διπλό κρεβάτι" }, ensuite: true }
+ */
+export const bedrooms: { name: { en: string; el: string }; beds: { en: string; el: string }; ensuite?: boolean }[] = [];
+
+/**
+ * Amenities shown on The House. Only list what is certain (photos or owner).
+ * Keys map to messages `amenities.<key>`. Add more after the renovation.
+ */
+export const amenities = ["seaView", "garden", "pergola", "outdoorDining", "bbq", "balconies", "beach"] as const;
+
+/** Check-in / check-out times (24h). null = "to be confirmed". */
+export const stayTimes = {
+  checkIn: "16:00" as string | null, // TODO(owner): confirm
+  checkOut: "10:00" as string | null, // TODO(owner): confirm
+};
+
+/** House rules. Keys map to messages `rules.<key>`. */
+export const houseRules = ["maxGuests", "noParties", "quietHours", "noSmoking", "pets", "beach"] as const;
+
+/**
  * Approximate driving times. `confirmed: false` = estimate awaiting the owner.
  * Keys map to messages `places.<key>`.
  */

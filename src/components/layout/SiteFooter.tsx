@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { AgaveMotif } from "@/components/brand/AgaveMotif";
+import { CookieSettingsButton } from "@/components/layout/ConsentBanner";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { Container } from "@/components/ui/Layout";
 import { Link } from "@/i18n/navigation";
@@ -86,6 +87,9 @@ export async function SiteFooter() {
                   </Link>
                 </li>
               ))}
+              <li>
+                <CookieSettingsButton label={t("cookies.settings")} className={linkClass} />
+              </li>
             </ul>
           </nav>
         </div>

@@ -2,7 +2,33 @@
   "meta": {
     "siteTitle": "Cape Avra · Seafront villa in Mytikas, Preveza",
     "siteDescription": "A private seafront house with a large garden on the cape of Mytikas, Preveza, Greece. {bedrooms} bedrooms for up to {guests} guests. Early booking requests open for {season}.",
-    "ogAlt": "Cape Avra, a seafront house on the cape of Mytikas, Preveza"
+    "ogAlt": "Cape Avra, a seafront house on the cape of Mytikas, Preveza",
+    "pages": {
+      "house": {
+        "title": "The House",
+        "description": "A two-storey family house in a large garden above the beach, for up to {guests} guests in {bedrooms} bedrooms. Cape Avra, Mytikas, Preveza."
+      },
+      "gallery": {
+        "title": "Gallery",
+        "description": "Photographs of the sea, the garden and the light at Cape Avra on the cape of Mytikas, Preveza."
+      },
+      "location": {
+        "title": "Location & experiences",
+        "description": "Cape Avra on the cape of Mytikas, 5 km from Preveza: beaches, ancient Nikopolis, Lefkada, Parga and how to get here."
+      },
+      "book": {
+        "title": "Early booking",
+        "description": "Request early booking for {season} at Cape Avra, a seafront house in Mytikas, Preveza. Book direct for the best price."
+      },
+      "faq": {
+        "title": "FAQ & house rules",
+        "description": "Answers about staying at Cape Avra in Mytikas, Preveza: capacity, beach, getting here, check-in and house rules."
+      },
+      "contact": {
+        "title": "Contact",
+        "description": "Write to Cape Avra about the house, the area or your dates. We reply personally."
+      }
+    }
   },
   "nav": {
     "home": "Home",
@@ -15,7 +41,8 @@
     "close": "Close",
     "skip": "Skip to content",
     "primary": "Main navigation",
-    "language": "Language"
+    "language": "Language",
+    "legal": "Legal"
   },
   "languages": {
     "en": "English",
@@ -110,7 +137,8 @@
     "nikopolis": "Ancient Nikopolis",
     "lefkada": "Lefkada",
     "parga": "Parga",
-    "minutes": "~{count} min by car"
+    "minutes": "~{count} min by car",
+    "monolithi": "Monolithi beach"
   },
   "footer": {
     "tagline": "Where the Ionian breeze begins",
@@ -130,5 +158,245 @@
     "title": "Page not found",
     "text": "The page you are looking for doesn’t exist, or isn’t ready yet.",
     "back": "Back to the home page"
-  }
+  },
+  "house": {
+    "eyebrow": "The house",
+    "title": "A family house above the beach",
+    "lead": "Cape Avra is a two-storey house in a wide garden on the cape of Mytikas, with the Ionian Sea just beyond the garden wall. It is being renovated from top to bottom and opens to guests in {season}.",
+    "insideTitle": "Inside",
+    "insideText": "Photographs of the renovated rooms will follow as soon as the work is complete.",
+    "sleepingTitle": "Sleeping",
+    "sleepingPending": "The bed configuration for the {bedrooms} bedrooms will be confirmed after the renovation.",
+    "ensuite": "En-suite bathroom",
+    "outdoorsTitle": "What we can tell you already",
+    "outdoorsNote": "The full list of amenities will be published after the renovation."
+  },
+  "amenities": {
+    "seaView": "Sea views from the upper floor",
+    "garden": "A large garden with lawn, palms and agaves",
+    "pergola": "Shaded pergola",
+    "outdoorDining": "Table for dining outdoors",
+    "bbq": "Barbecue",
+    "balconies": "Balconies on the upper floor",
+    "beach": "The beach just below the garden"
+  },
+  "gallery": {
+    "eyebrow": "Gallery",
+    "title": "Sea, garden, light",
+    "lead": "The cape at different hours of the day. Photographs of the renovated interiors will be added when the work is complete.",
+    "filterLabel": "Show photos of",
+    "filters": {
+      "all": "All",
+      "sea": "Sea",
+      "garden": "Garden",
+      "house": "House",
+      "surroundings": "Surroundings"
+    },
+    "empty": {
+      "house": "Interior photography follows after the renovation.",
+      "surroundings": "Photographs of Preveza, Nikopolis and the coast are on their way."
+    },
+    "lightbox": {
+      "label": "Photo viewer",
+      "close": "Close",
+      "prev": "Previous photo",
+      "next": "Next photo",
+      "counter": "{current} of {total}",
+      "open": "Open photo: {alt}"
+    }
+  },
+  "location": {
+    "eyebrow": "Location & experiences",
+    "title": "On the cape of Mytikas",
+    "lead": "Five kilometres from Preveza, on the open Ionian coast. Long beaches, ancient Nikopolis, Lefkada and Parga are all within an easy drive.",
+    "map": {
+      "title": "Around the house",
+      "label": "Schematic map of the area around Cape Avra",
+      "caption": "Schematic map: directions are true, rings show driving time, not to scale.",
+      "house": "Cape Avra",
+      "sea": "Ionian Sea",
+      "ring": "{count} min",
+      "openMaps": "Open the area in Google Maps",
+      "exactNote": "We share the exact address with confirmed guests."
+    },
+    "distancesTitle": "Driving times",
+    "beachesTitle": "Beaches",
+    "beaches": {
+      "below": {
+        "title": "The beach below the house",
+        "text": "A few steps from the garden. Like every beach in Greece it is public, and outside high summer it is usually quiet."
+      },
+      "monolithi": {
+        "title": "Monolithi",
+        "text": "A long sandy beach that runs north from Mytikas for kilometres, with clear water and room for everyone."
+      },
+      "lefkadaWest": {
+        "title": "Lefkada's west coast",
+        "text": "Porto Katsiki, Egremni and Kathisma: white cliffs and turquoise water. A full day out."
+      },
+      "parga": {
+        "title": "Parga",
+        "text": "Valtos and Lichnos, below the Venetian castle."
+      }
+    },
+    "experiencesTitle": "Days out",
+    "experiences": {
+      "preveza": {
+        "title": "Preveza",
+        "text": "The old town and the waterfront with its tavernas, ten minutes away. Lively on summer evenings."
+      },
+      "nikopolis": {
+        "title": "Ancient Nikopolis",
+        "text": "The city Octavian founded after the Battle of Actium: walls, mosaics, a theatre and a museum."
+      },
+      "lefkada": {
+        "title": "Lefkada",
+        "text": "An island you can drive to over a short bridge, with some of the best-known beaches in the Ionian."
+      },
+      "parga": {
+        "title": "Parga",
+        "text": "A colourful harbour town under a Venetian castle, with beaches and boat trips."
+      },
+      "gulf": {
+        "title": "The Ambracian Gulf",
+        "text": "A calm inland sea of lagoons and wetlands, known for its dolphins and birdlife."
+      },
+      "acheron": {
+        "title": "The Acheron river",
+        "text": "The river of myth. Walk or wade through the gorge at its springs near Glyki."
+      }
+    },
+    "tavernasTitle": "Where to eat",
+    "tavernasEmpty": "We are putting together our own list of favourite tavernas, and we share it with every guest.",
+    "gettingHereTitle": "Getting here",
+    "gettingHere": {
+      "plane": "By air: Aktion airport (PVK) is about 15 minutes away, with summer flights from many European cities.",
+      "car": "By car: about 4 hours from Athens on the Ionia Odos motorway.",
+      "local": "A car is the easiest way to explore the area."
+    }
+  },
+  "faq": {
+    "eyebrow": "FAQ",
+    "title": "Questions & house rules",
+    "lead": "If something is missing, write to us. We answer every message personally.",
+    "questionsTitle": "Frequently asked questions",
+    "items": [
+      {
+        "q": "When can we stay?",
+        "a": "Cape Avra opens to guests in {season}. You can send an early booking request now, and we will reply personally before booking opens anywhere else."
+      },
+      {
+        "q": "Why book direct?",
+        "a": "Booking directly with us means the best price for the house, no platform fees, and a direct line to us before and during your stay."
+      },
+      {
+        "q": "How many guests can stay?",
+        "a": "Up to {guests} guests, in {bedrooms} bedrooms with {bathrooms} bathrooms."
+      },
+      {
+        "q": "Is there a pool?",
+        "a": "No. The house has a large garden instead, and the sea is right below it."
+      },
+      {
+        "q": "How close is the beach?",
+        "a": "The beach is just below the garden. It is a public beach, as all beaches in Greece are."
+      },
+      {
+        "q": "Do we need a car?",
+        "a": "We recommend one. Preveza is about 10 minutes away, and the beaches, Nikopolis, Lefkada and Parga are all easy drives."
+      },
+      {
+        "q": "Which airport is closest?",
+        "a": "Aktion airport (PVK), about 15 minutes away by car."
+      },
+      {
+        "q": "What are the check-in and check-out times?",
+        "a": "Check-in from {checkIn}, check-out by {checkOut}. If you need more flexibility, ask us."
+      },
+      {
+        "q": "How do payment and cancellation work?",
+        "a": "Payment terms and the cancellation policy will be published when online booking opens. An early booking request is free and without obligation."
+      },
+      {
+        "q": "What do the interiors look like?",
+        "a": "The house is being renovated from top to bottom. We will publish photographs of every room as soon as the work is complete."
+      }
+    ],
+    "rulesTitle": "House rules"
+  },
+  "rules": {
+    "maxGuests": "No more than {guests} guests stay overnight.",
+    "noParties": "No parties or events.",
+    "quietHours": "Quiet hours from 23:00 to 08:00, out of respect for our neighbours.",
+    "noSmoking": "No smoking indoors.",
+    "pets": "Pets on request.",
+    "beach": "Please leave the beach as you found it."
+  },
+  "contact": {
+    "eyebrow": "Contact",
+    "title": "Write to us",
+    "lead": "Questions about the house, the area or your dates? We reply personally to every message.",
+    "directTitle": "Directly",
+    "email": "Email",
+    "whatsapp": "WhatsApp",
+    "viber": "Viber",
+    "instagram": "Instagram",
+    "formTitle": "Send a message"
+  },
+  "book": {
+    "title": "Request early booking",
+    "lead": "Cape Avra welcomes its first guests in {season}. Tell us your dates and we will reply personally, before booking opens anywhere else. A request is free and without obligation.",
+    "howTitle": "How it works",
+    "steps": [
+      "Send us your preferred dates and the number of guests.",
+      "We reply personally with availability and the price for your stay.",
+      "If you would like to go ahead, we confirm the booking directly with you."
+    ],
+    "liveSoon": "Online booking with a live calendar is coming soon. Until then, send us your dates below."
+  },
+  "form": {
+    "name": "Your name",
+    "email": "Email",
+    "phone": "Phone",
+    "optional": "optional",
+    "phoneHint": "With country code, if you prefer WhatsApp or Viber.",
+    "checkIn": "Arrival",
+    "checkOut": "Departure",
+    "flexible": "My dates are flexible",
+    "guests": "Guests",
+    "message": "Message",
+    "marketing": "Send me occasional news about Cape Avra.",
+    "privacy": "I have read the <link>privacy policy</link>.",
+    "submitWaitlist": "Send request",
+    "submitContact": "Send message",
+    "sending": "Sending…",
+    "successTitle": "Thank you",
+    "successWaitlist": "We have received your request and will reply personally to {email}.",
+    "successContact": "We have received your message and will reply to {email}.",
+    "errors": {
+      "required": "Please fill in this field.",
+      "email": "Please enter a valid email address.",
+      "dates": "Departure must be after arrival.",
+      "datesPast": "Please choose dates in the future.",
+      "guests": "Choose between 1 and {max} guests.",
+      "privacy": "Please confirm you have read the privacy policy.",
+      "tooLong": "Please keep this shorter.",
+      "generic": "Something went wrong. Please try again, or email us at {email}.",
+      "rate": "Too many attempts. Please wait a few minutes and try again.",
+      "unavailable": "The form is not available right now. Please email us at {email}."
+    }
+  },
+  "cookies": {
+    "label": "Cookie consent",
+    "text": "We only use what the site needs to work. With your permission, we also count visits anonymously, without cookies, to improve the site.",
+    "accept": "Allow analytics",
+    "decline": "Only essential",
+    "policy": "Cookie policy",
+    "settings": "Cookie settings"
+  },
+  "legal": {
+    "updated": "Last updated: {date}",
+    "draftNote": "This text is a draft and is being reviewed."
+  },
+  "soon": "This page arrives in the next phase of the build."
 }

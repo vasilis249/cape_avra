@@ -33,6 +33,10 @@ const siteConfigSchema = z.object({
   legal: z.object({
     /** Αριθμός Μητρώου Ακινήτου (short-term rental registry). Shown in the imprint. */
     ama: z.string().nullable(),
+    /** Person or company operating the rental (data controller in the privacy policy). */
+    operator: z.string().nullable(),
+    /** ΑΦΜ / VAT number, if applicable. */
+    taxId: z.string().nullable(),
   }),
 });
 
@@ -60,6 +64,8 @@ const raw: SiteConfig = {
   },
   legal: {
     ama: null, // TODO(owner): property registry number (ΑΜΑ)
+    operator: null, // TODO(owner): your full name or company name
+    taxId: null, // TODO(owner): ΑΦΜ, if you want it shown
   },
 };
 

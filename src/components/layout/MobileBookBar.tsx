@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Link } from "@/i18n/navigation";
+import { Link, usePathname } from "@/i18n/navigation";
 import { buttonClasses } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 
 /** Sticky "check availability / early booking" bar on phones, shown once the hero is scrolled past. */
 export function MobileBookBar({ label, note }: { label: string; note?: string }) {
   const [visible, setVisible] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const onScroll = () => setVisible(window.scrollY > window.innerHeight * 0.6);
@@ -15,6 +16,9 @@ export function MobileBookBar({ label, note }: { label: string; note?: string })
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // pointless on the booking page itself
+  if (pathname === "/book") return null;
 
   return (
     <div
