@@ -29,14 +29,18 @@ behind a `PaymentProvider` interface (Viva.com possible later), Resend + React E
 
 ```
 photos/raw/               ORIGINAL photos: never modified, never served
+videos/raw/               ORIGINAL hero video (iPhone .MOV): never modified, never served
 content/                  everything editable without touching components
   site.config.ts          mode (preview|live), contacts, ΑΜΑ, season … (zod-validated)
   property.ts             capacity, interior spaces (photo slots), distances
   photos.ts               photo registry: crop/rotate/focal/alt EN+EL/category
+  video.ts                hero video settings: trim, speed (slow-mo), crops, alt
   reviews.ts              REAL reviews only; section hidden while empty
   messages/{en,el}.json   all UI copy
 scripts/photos.ts         npm run photos → public/photos/*.jpg + src/generated/photos.json
 scripts/brand.ts          npm run brand  → wordmark/monogram paths, favicon, avatars
+scripts/video.ts          npm run video  → public/video/* (mp4+webm, landscape+portrait, posters) + src/generated/video.json
+scripts/export-html.ts    npm run export:html → static HTML preview (see Commands)
 src/app/[locale]/         pages (root layout lives here; locale is a root param)
 src/i18n/                 routing (translated slugs), navigation, request config
 src/proxy.ts              next-intl locale negotiation (Next 16 Proxy)
@@ -50,6 +54,12 @@ src/lib/                  photos, seo (hreflang/OG), structured-data, cn
   Greek and English must be kept in sync (same keys).
 - **Photos**: add to `content/photos.ts`, run `npm run photos`, reference by id via `<Photo id=… sizes=…/>`.
   Never edit files in `photos/raw`. Output is EXIF/GPS-free and content-hashed.
+- **Hero video**: full-screen, slow-motion (0.4×, motion-interpolated to 30 fps), stabilised,
+  ping-pong loop (no jump), muted, decorative (`aria-hidden`). The poster (art-directed
+  landscape/portrait `<picture>`) paints first; `<HeroVideo>` loads the video only after `load`,
+  picks landscape/portrait + MP4/WebM, skips autoplay under reduced-motion / Save-Data / 2G,
+  pauses off-screen, and has a visible pause/play button (WCAG 2.2.2). Pipeline needs ffmpeg;
+  the slow-motion master is cached in `.cache/video` (interpolation takes ~6 min).
 - **Interior placeholders**: `property.spaces[].photo = null` → `<InteriorPlaceholder>`; set a photo id to replace.
 - **Site mode**: `siteConfig.mode` (`preview` now). Env `SITE_MODE` overrides. Preview = early-booking CTAs.
 - **Links**: use `Link`/`ButtonLink` from `@/i18n/navigation` with internal pathnames (`"/the-house"`),
@@ -83,6 +93,7 @@ npm run build && npm start
 npm run lint
 npm run photos   # after editing content/photos.ts or adding raw photos
 npm run brand    # regenerate logo assets
+npm run video    # regenerate hero video (needs ffmpeg: libx264, libvpx-vp9, vidstab, zscale)
 npm run export:html  # build + static HTML preview → preview/cape-avra-{en,el}.html
                      # (+ preview/.artifact/ for the hosted preview link, git-ignored)
 ```

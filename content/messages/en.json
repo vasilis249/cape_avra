@@ -36,7 +36,9 @@
       "title": "A garden on the edge of the sea",
       "lead": "A private seafront house on the cape of Mytikas, Preveza, for up to {guests} guests.",
       "scroll": "Scroll to discover",
-      "seasonNote": "Early booking requests are open for {season}."
+      "seasonNote": "Early booking requests are open for {season}.",
+      "pauseVideo": "Pause background video",
+      "playVideo": "Play background video"
     },
     "intro": {
       "eyebrow": "The place",

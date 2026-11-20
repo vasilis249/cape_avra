@@ -19,7 +19,7 @@ const nextConfig: NextConfig = {
     qualities: [70, 80],
     deviceSizes: [480, 640, 828, 1080, 1280, 1600, 1920, 2400],
     imageSizes: [96, 160, 256, 384],
-    localPatterns: [{ pathname: "/photos/**" }, { pathname: "/brand/**" }],
+    localPatterns: [{ pathname: "/photos/**" }, { pathname: "/brand/**" }, { pathname: "/video/**" }],
     // generated masters are content-hashed, so they can be cached for a year
     minimumCacheTTL: 31536000,
   },

@@ -9,7 +9,8 @@
     "lint": "eslint",
     "photos": "tsx scripts/photos.ts",
     "brand": "tsx scripts/brand.ts",
-    "export:html": "next build && tsx scripts/export-html.ts"
+    "export:html": "next build && tsx scripts/export-html.ts",
+    "video": "tsx scripts/video.ts"
   },
   "dependencies": {
     "@fontsource/commissioner": "^5.3.0",

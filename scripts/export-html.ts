@@ -89,17 +89,55 @@ async function photoWebp(file: string): Promise<Buffer> {
   return photoCache.get(file)!;
 }
 
+const posterCache = new Map<string, Buffer>();
+async function posterWebp(file: string): Promise<Buffer> {
+  if (!posterCache.has(file)) {
+    posterCache.set(file, await sharp(path.join(ROOT, "public/video", file)).webp({ quality: 80 }).toBuffer());
+  }
+  return posterCache.get(file)!;
+}
+const videoFiles = new Set<string>();
+
 type Mode = { kind: "standalone" } | { kind: "artifact" };
 
 /** Turn one rendered page's <body> into static markup. */
 async function processBody(html: string, locale: L, mode: Mode): Promise<string> {
   const $ = cheerio.load(html);
+  const messages = JSON.parse(await readFile(path.join(ROOT, `content/messages/${locale}.json`), "utf8"));
+  const labels = { pause: messages.home.hero.pauseVideo as string, play: messages.home.hero.playVideo as string };
   $("script, noscript, template, link").remove();
   $('[hidden][id^="S:"]').remove();
+
+  // hero video: poster (art-directed <picture>) + video sources
+  for (const el of $("picture source[srcset]").toArray()) {
+    const src = $(el);
+    const file = decodeURIComponent(src.attr("srcset") ?? "").match(/\/video\/([^&\s]+\.jpg)/)?.[1];
+    if (!file) continue;
+    const buf = await posterWebp(file);
+    src.attr("srcset", mode.kind === "standalone" ? toDataUri(buf, "image/webp") : `video/${file.split(".")[0]}.webp`);
+  }
+  for (const el of $("video").toArray()) {
+    const v = $(el);
+    v.attr("muted", "").attr("autoplay", null);
+    for (const attr of ["data-src-landscape", "data-src-portrait", "data-webm-landscape", "data-webm-portrait"]) {
+      const file = (v.attr(attr) ?? "").split("/").pop()!;
+      if (!file) continue;
+      videoFiles.add(file);
+      // standalone files sit in preview/, next to the repo's public/ folder
+      v.attr(attr, mode.kind === "standalone" ? `../public/video/${file}` : `video/${file}`);
+    }
+  }
 
   for (const el of $("img").toArray()) {
     const img = $(el);
     const src = img.attr("src") ?? "";
+    const vposter = decodeURIComponent(src).match(/\/video\/([^&]+\.jpg)/)?.[1];
+    if (vposter) {
+      const buf = await posterWebp(vposter);
+      img.attr("src", mode.kind === "standalone" ? toDataUri(buf, "image/webp") : `video/${vposter.split(".")[0]}.webp`);
+      img.removeAttr("srcset").removeAttr("sizes").removeAttr("fetchpriority");
+      continue;
+    }
     const m = decodeURIComponent(src).match(/\/photos\/([^&]+)/);
     if (!m) continue;
     const file = m[1];
@@ -121,6 +159,11 @@ async function processBody(html: string, locale: L, mode: Mode): Promise<string>
       $(`[${attr}]`).each((_, e) => void $(e).attr(attr, $(e).attr(attr) + suffix));
     }
   }
+
+  $("[data-video-toggle]").each((_, e) => {
+    const b = $(e);
+    b.attr("data-label-pause", labels.pause).attr("data-label-play", labels.play);
+  });
 
   $("a[href]").each((_, e) => {
     const a = $(e);
@@ -236,6 +279,48 @@ function runtimeScript(soon: Record<string, string>, multiLang: boolean) {
     }
   });
 
+  // hero background video (mirrors components/media/HeroVideo.tsx)
+  const PAUSE_ICON = "M4 2.5h2.5v11H4zM9.5 2.5H12v11H9.5z", PLAY_ICON = "M4.5 2.5v11l9-5.5z";
+  function setupVideos() {
+    document.querySelectorAll("video[data-src-landscape]").forEach((v) => {
+      if (v.dataset.ready) return; v.dataset.ready = "1";
+      const btn = v.parentElement.querySelector("[data-video-toggle]");
+      const labels = { pause: btn?.dataset.labelPause, play: btn?.dataset.labelPlay };
+      const sync = () => {
+        if (!btn) return;
+        const playing = !v.paused;
+        btn.setAttribute("aria-label", playing ? labels.pause : labels.play);
+        btn.setAttribute("aria-pressed", String(!playing));
+        btn.querySelector("path")?.setAttribute("d", playing ? PAUSE_ICON : PLAY_ICON);
+      };
+      let userPaused = false;
+      const load = () => {
+        if (v.getAttribute("src")) return;
+        const o = matchMedia("(orientation: portrait)").matches ? "portrait" : "landscape";
+        v.src = v.canPlayType('video/mp4; codecs="avc1.640028"') ? v.dataset["src" + o[0].toUpperCase() + o.slice(1)] : v.dataset["webm" + o[0].toUpperCase() + o.slice(1)];
+      };
+      v.addEventListener("playing", () => { v.classList.remove("opacity-0"); v.classList.add("opacity-100"); sync(); });
+      v.addEventListener("pause", sync);
+      btn?.addEventListener("click", () => { load(); if (v.paused) { userPaused = false; v.play().catch(() => {}); } else { userPaused = true; v.pause(); } });
+      v.muted = true; // React sets this as a property on hydration; static HTML has to do it here
+      const conn = navigator.connection;
+      const skip = matchMedia("(prefers-reduced-motion: reduce)").matches || conn?.saveData || /(^|-)2g$/.test(conn?.effectiveType || "");
+      v._autostart = () => { if (!skip && !userPaused) { load(); v.play().catch(() => {}); } };
+      if (!v.closest("[hidden]")) v._autostart();
+      new IntersectionObserver(([e]) => {
+        if (!v.getAttribute("src")) return;
+        if (!e.isIntersecting || v.closest("[hidden]")) v.pause();
+        else if (!userPaused) v.play().catch(() => {});
+      }).observe(v);
+    });
+  }
+  function pauseHiddenVideos() {
+    document.querySelectorAll("[hidden] video").forEach((v) => v.pause());
+    scope().querySelectorAll("video[data-src-landscape]").forEach((v) => v._autostart?.());
+  }
+  window.addEventListener("hashchange", pauseHiddenVideos);
+  if (document.readyState === "complete") setupVideos(); else window.addEventListener("load", setupVideos);
+
   window.addEventListener("scroll", onScroll, { passive: true });
   window.addEventListener("hashchange", setLang);
   setLang();
@@ -297,6 +382,13 @@ ${runtimeScript(SOON, true)}
     await writeFile(path.join(ART, "index.html"), artifact);
     for (const [file, buf] of photoCache) {
       await writeFile(path.join(ART, "photos", `${file.split(".")[0]}.webp`), buf);
+    }
+    await mkdir(path.join(ART, "video"), { recursive: true });
+    for (const [file, buf] of posterCache) {
+      await writeFile(path.join(ART, "video", `${file.split(".")[0]}.webp`), buf);
+    }
+    for (const file of videoFiles) {
+      await writeFile(path.join(ART, "video", file), await readFile(path.join(ROOT, "public/video", file)));
     }
     console.log(`✓ preview/.artifact/index.html  ${(artifact.length / 1024).toFixed(0)} KB + ${photoCache.size} photos`);
   } finally {
