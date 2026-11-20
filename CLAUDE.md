@@ -83,4 +83,9 @@ npm run build && npm start
 npm run lint
 npm run photos   # after editing content/photos.ts or adding raw photos
 npm run brand    # regenerate logo assets
+npm run export:html  # build + static HTML preview → preview/cape-avra-{en,el}.html
+                     # (+ preview/.artifact/ for the hosted preview link, git-ignored)
 ```
+
+Hosted preview (private, owner's claude.ai): https://claude.ai/artifact/RM4Wuck6XbSUQ26LCV5XNv
+(append `#el` for Greek). Re-run `npm run export:html` and republish after changes.

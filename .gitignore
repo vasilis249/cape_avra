@@ -42,3 +42,6 @@ next-env.d.ts
 
 # allow the committed template
 !.env.example
+
+# hosted-preview build output
+/preview/.artifact/
