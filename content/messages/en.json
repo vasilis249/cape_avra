@@ -1,0 +1,132 @@
+{
+  "meta": {
+    "siteTitle": "Cape Avra · Seafront villa in Mytikas, Preveza",
+    "siteDescription": "A private seafront house with a large garden on the cape of Mytikas, Preveza, Greece. {bedrooms} bedrooms for up to {guests} guests. Early booking requests open for {season}.",
+    "ogAlt": "Cape Avra, a seafront house on the cape of Mytikas, Preveza"
+  },
+  "nav": {
+    "home": "Home",
+    "house": "The House",
+    "gallery": "Gallery",
+    "location": "Location",
+    "faq": "FAQ",
+    "contact": "Contact",
+    "menu": "Menu",
+    "close": "Close",
+    "skip": "Skip to content",
+    "primary": "Main navigation",
+    "language": "Language"
+  },
+  "languages": {
+    "en": "English",
+    "el": "Ελληνικά"
+  },
+  "cta": {
+    "earlyBooking": "Request early booking",
+    "earlyBookingShort": "Early booking",
+    "checkAvailability": "Check availability",
+    "discoverHouse": "Discover the house",
+    "viewGallery": "View the gallery",
+    "exploreLocation": "Explore the area",
+    "bookDirectShort": "{season} · Best price when you book direct"
+  },
+  "home": {
+    "hero": {
+      "eyebrow": "Mytikas · Preveza · Greece",
+      "title": "A garden on the edge of the sea",
+      "lead": "A private seafront house on the cape of Mytikas, Preveza, for up to {guests} guests.",
+      "scroll": "Scroll to discover",
+      "seasonNote": "Early booking requests are open for {season}."
+    },
+    "intro": {
+      "eyebrow": "The place",
+      "title": "Where the Ionian breeze begins",
+      "p1": "Cape Avra sits on the cape of Mytikas, five kilometres from Preveza, where the land ends and the Ionian opens up. A wide garden of palms, agaves and shade trees runs to the garden wall. Beyond it lie the beach and the open sea.",
+      "p2": "In the evening the sun sets into the water and the mountains of Lefkada turn blue on the horizon.",
+      "p3": "Avra (αύρα) is the Greek word for the soft breeze that comes in off the sea on summer afternoons. It gave the house its name.",
+      "caption": "Lefkada on the horizon, seen from the upper floor."
+    },
+    "highlights": {
+      "eyebrow": "Why Cape Avra",
+      "title": "Sea, garden, silence.",
+      "sea": {
+        "title": "Front row on the Ionian",
+        "text": "The house looks straight out to open water. Swim at the beach below, then watch the light change from the garden."
+      },
+      "garden": {
+        "title": "A garden for long days",
+        "text": "A wide lawn with palms and agaves, shade under the pergola and room for everyone. Dinner outdoors, with the sea just beyond the wall."
+      },
+      "privacy": {
+        "title": "Yours alone",
+        "text": "One house, one group of guests. No shared spaces, no strangers at the next table. Just your own garden and your own gate to the sea."
+      }
+    },
+    "house": {
+      "eyebrow": "The house",
+      "title": "Room for {guests}, renewed for 2027",
+      "text": "The interiors are being renovated from top to bottom, and new photography will follow as soon as the work is complete. Until then, here is what the house will offer.",
+      "facts": {
+        "guests": "{count} guests",
+        "bedrooms": "{count} bedrooms",
+        "bathrooms": "{count} bathrooms"
+      }
+    },
+    "gallery": {
+      "eyebrow": "Gallery",
+      "title": "Light, from morning to blue hour"
+    },
+    "booking": {
+      "title": "Be among the first to stay",
+      "text": "Cape Avra welcomes its first guests in {season}. Send us your dates and we will reply personally, before booking opens anywhere else.",
+      "direct": "Book direct for the best price, with no platform fees."
+    },
+    "location": {
+      "eyebrow": "Location",
+      "title": "On the cape of Mytikas",
+      "text": "A quiet stretch of Ionian coast just north of Preveza. The long sandy beach of Monolithi runs north from here, and the ruins of ancient Nikopolis are a few minutes inland. Lefkada and Parga are easy day trips."
+    },
+    "reviews": {
+      "eyebrow": "Guests",
+      "title": "In their words"
+    }
+  },
+  "spaces": {
+    "living": "Living room",
+    "kitchen": "Kitchen & dining",
+    "bedrooms": "Bedrooms",
+    "bathrooms": "Bathrooms"
+  },
+  "placeholder": {
+    "comingSoon": "Interior photography coming soon"
+  },
+  "places": {
+    "beach": "The beach",
+    "beachValue": "Below the garden",
+    "prevezaTown": "Preveza town",
+    "airport": "Aktion airport (PVK)",
+    "nikopolis": "Ancient Nikopolis",
+    "lefkada": "Lefkada",
+    "parga": "Parga",
+    "minutes": "~{count} min by car"
+  },
+  "footer": {
+    "tagline": "Where the Ionian breeze begins",
+    "address": "Mytikas, Preveza, Greece",
+    "exploreTitle": "Explore",
+    "contactTitle": "Contact",
+    "legalTitle": "Legal",
+    "privacy": "Privacy policy",
+    "cookies": "Cookies",
+    "terms": "Terms & cancellation",
+    "imprint": "Imprint",
+    "rights": "© {year} Cape Avra",
+    "ama": "Property registry no. (ΑΜΑ) {ama}",
+    "instagram": "Cape Avra on Instagram"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "text": "The page you are looking for doesn’t exist, or isn’t ready yet.",
+    "back": "Back to the home page"
+  }
+}

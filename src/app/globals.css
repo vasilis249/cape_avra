@@ -1,26 +1,189 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ------------------------------------------------------------------
+   Cape Avra design tokens
+   Palette taken from the place: Ionian water, agave leaves, olive,
+   limestone, sand, salt, blue hour and the last of the sunset.
+   ------------------------------------------------------------------ */
+@theme {
+  --color-salt: #f6f2ea; /* page background */
+  --color-sand: #ebe2d3; /* alternate sections */
+  --color-limestone: #bfae93; /* hairlines, details */
+  --color-agave: #8ea39b; /* soft accent on dark */
+  --color-olive: #5f6b48; /* secondary accent */
+  --color-ionian: #1f4d55; /* brand primary, CTAs */
+  --color-ionian-deep: #173b42; /* CTA hover */
+  --color-night: #1b2433; /* blue-hour dark sections */
+  --color-dusk: #c9744e; /* sunset accent: decorative / large text only */
+  --color-ink: #1d2220; /* body text */
+  --color-ink-soft: #4a524f; /* secondary text (7.2:1 on salt) */
+
+  --font-display: var(--font-noto-serif-display), "Iowan Old Style", Georgia, serif;
+  --font-sans: var(--font-commissioner), ui-sans-serif, system-ui, sans-serif;
+
+  /* fluid type scale */
+  --text-display: clamp(2.6rem, 1.4rem + 5.2vw, 6rem);
+  --text-display--line-height: 1.02;
+  --text-display--letter-spacing: -0.015em;
+  --text-h1: clamp(2.2rem, 1.45rem + 3.2vw, 4.25rem);
+  --text-h1--line-height: 1.06;
+  --text-h1--letter-spacing: -0.01em;
+  --text-h2: clamp(1.85rem, 1.3rem + 2.3vw, 3.25rem);
+  --text-h2--line-height: 1.1;
+  --text-h3: clamp(1.35rem, 1.15rem + 0.8vw, 1.75rem);
+  --text-h3--line-height: 1.25;
+  --text-lead: clamp(1.1rem, 1.02rem + 0.38vw, 1.3rem);
+  --text-lead--line-height: 1.65;
+  --text-eyebrow: 0.75rem;
+  --text-eyebrow--line-height: 1.4;
+  --text-eyebrow--letter-spacing: 0.24em;
+
+  --ease-breeze: cubic-bezier(0.22, 0.61, 0.24, 1);
+  --container-site: 84rem;
+  --container-prose: 38rem;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    color-scheme: light;
+    -webkit-text-size-adjust: 100%;
+  }
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+  }
+  body {
+    background: var(--color-salt);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 1.0625rem;
+    line-height: 1.7;
+    font-feature-settings: "kern", "liga";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  ::selection {
+    background: var(--color-agave);
+    color: var(--color-night);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-dusk);
+    outline-offset: 3px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ------------------------------------------------------------------
+   Motion. Everything here is disabled under prefers-reduced-motion.
+   ------------------------------------------------------------------ */
+
+/* Fade-up on scroll: <Reveal> sets data-revealed when in view. */
+.reveal {
+  opacity: 0;
+  transform: translate3d(0, 1.25rem, 0);
+  transition:
+    opacity 1.1s var(--ease-breeze),
+    transform 1.1s var(--ease-breeze);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+.reveal[data-revealed] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Hero: the photo settles slowly, like a held breath. */
+@keyframes breeze-settle {
+  from {
+    transform: scale(1.07) translate3d(-1%, 0, 0);
+  }
+  to {
+    transform: none;
+  }
+}
+.breeze-settle {
+  animation: breeze-settle 14s var(--ease-breeze) both;
+}
+
+/* Wordmark letters drift in from a wider spacing, like a breeze settling. */
+@keyframes letter-settle {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--offset, 0) * 1px));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.wordmark-animate .wordmark-letter {
+  animation: letter-settle 2.4s var(--ease-breeze) both;
+  animation-delay: calc(var(--i, 0) * 60ms + 200ms);
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 0.75rem, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.fade-up {
+  animation: fade-up 1.4s var(--ease-breeze) both;
+  animation-delay: var(--delay, 0ms);
+}
+
+/* Gentle parallax with CSS scroll-driven animations (no JS). Browsers
+   without support simply show the image still. */
+@supports (animation-timeline: view()) {
+  @keyframes drift {
+    from {
+      transform: translate3d(0, -4%, 0) scale(1.08);
+    }
+    to {
+      transform: translate3d(0, 4%, 0) scale(1.08);
+    }
+  }
+  .parallax {
+    animation: drift linear both;
+    animation-timeline: view();
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal[data-revealed] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .breeze-settle,
+  .fade-up,
+  .parallax,
+  .wordmark-animate .wordmark-letter {
+    animation: none !important;
+  }
+}
+
+/* Interior placeholder: a quiet linen texture. */
+.linen {
+  background-color: var(--color-sand);
+  background-image:
+    repeating-linear-gradient(0deg, rgb(29 34 32 / 0.025) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgb(29 34 32 / 0.02) 0 1px, transparent 1px 4px),
+    radial-gradient(120% 90% at 30% 20%, rgb(255 255 255 / 0.55), transparent 60%);
 }

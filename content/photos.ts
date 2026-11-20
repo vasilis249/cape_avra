@@ -92,7 +92,8 @@ export const photos = [
     id: "sun-on-the-water",
     file: "IMG_7196.jpeg",
     category: "sea",
-    crop: { x: 0, y: 0, w: 1, h: 0.68 },
+    crop: { x: 0, y: 0.27, w: 1, h: 0.41 },
+    focal: "62% 50%",
     alt: {
       en: "Afternoon sun glittering on the sea below the garden, with swimmers off the beach",
       el: "Ο απογευματινός ήλιος λαμπυρίζει στη θάλασσα κάτω από τον κήπο, με λουόμενους στην παραλία",
