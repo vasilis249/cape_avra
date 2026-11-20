@@ -1,0 +1,65 @@
+{
+  "blue-hour-agaves": {
+    "src": "/photos/blue-hour-agaves.03365919.jpg",
+    "width": 1512,
+    "height": 2016,
+    "blurDataURL": "data:image/webp;base64,UklGRloAAABXRUJQVlA4IE4AAAAwAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JQAAKSQlhAc6AAP7kIaj2S+F64Zjg+F7wrWtAT8rzNYFq/4MntLfc2R2/JTD4nuAAYLNplAA=",
+    "color": "#080808"
+  },
+  "garden-to-the-sea": {
+    "src": "/photos/garden-to-the-sea.505f2ccd.jpg",
+    "width": 1512,
+    "height": 2016,
+    "blurDataURL": "data:image/webp;base64,UklGRnQAAABXRUJQVlA4IGgAAADwAwCdASoQABUAPu1kqk4ppaQiMAgBMB2JZACdLwABQI37hn0p82cAAP653NWJfwF5JoDYPOBPu8x5i1Lc55PIz/KwUPW2Bt83NQB+gpRZJ+V7XsSK7BKPcVfyNfxdXqRXI5QlPayAAA==",
+    "color": "#080808"
+  },
+  "sunset-clouds": {
+    "src": "/photos/sunset-clouds.9a45f55c.jpg",
+    "width": 1331,
+    "height": 2016,
+    "blurDataURL": "data:image/webp;base64,UklGRnwAAABXRUJQVlA4IHAAAABQBACdASoQABgAPu1mq04ppaQiMAgBMB2JagCdLwABu5vXgdNtUp7qgJ2AAP3eQdsF9Z+TbZKoxapP1yhpXAtRuy/iND1U57Ji2MXixspX0G1Veynyz/g9efEsT6nx/Tw2y39yxCdAu0pwSnFUqAAA",
+    "color": "#080808"
+  },
+  "garden-gate-dusk": {
+    "src": "/photos/garden-gate-dusk.e1cbda75.jpg",
+    "width": 1512,
+    "height": 2016,
+    "blurDataURL": "data:image/webp;base64,UklGRmwAAABXRUJQVlA4IGAAAADwAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JYwAAXvYNd3nseKdMie8AAP7sTX4QwN3EPDtzhPDeOsoe5k252/r7UdIUQX6q3xLHbtlRaE81/QSkvVdKTU0fX5glIWNAAAA=",
+    "color": "#080808"
+  },
+  "garden-sunset-lawn": {
+    "src": "/photos/garden-sunset-lawn.5be300b1.jpg",
+    "width": 907,
+    "height": 1129,
+    "blurDataURL": "data:image/webp;base64,UklGRm4AAABXRUJQVlA4IGIAAADQAwCdASoQABQAPu1iqU2ppaOiMAgBMB2JZQC06CPRx/1UpSbZGmAA4gQ8klxlqTGJBct6gmTt5XOQULnaxiIJXWpDZScTbLVKrQjqc70fyfq8tXtf2Z71fMCjDMdx6EAAAA==",
+    "color": "#080808"
+  },
+  "agave-silhouettes": {
+    "src": "/photos/agave-silhouettes.7a0c48f3.jpg",
+    "width": 1401,
+    "height": 1808,
+    "blurDataURL": "data:image/webp;base64,UklGRmoAAABXRUJQVlA4IF4AAACwAwCdASoQABUAPu1kqU4ppaOiMAgBMB2JQBYfv/wHj6o2p4N0AAD+5A6fKpVXgyK/MD8F0lHo8K9G2TQhAkzV3JTm1ISz9s5k9T9iSNkaVJ9wUqnPIEcimMjzIAAA",
+    "color": "#080808"
+  },
+  "sun-on-the-water": {
+    "src": "/photos/sun-on-the-water.4c7f172c.jpg",
+    "width": 1512,
+    "height": 1371,
+    "blurDataURL": "data:image/webp;base64,UklGRloAAABXRUJQVlA4IE4AAADwAQCdASoQAA4AA4BaJbACdADu+6Hb1ZAA/rnJjaSgzxvxR/4PM+WHm0w74rcg6FVxJl7WSWN2lxJxsWqeqvybJ9RLMe8Lzr0WNgCQAAA=",
+    "color": "#4878b8"
+  },
+  "turquoise-shallows": {
+    "src": "/photos/turquoise-shallows.3ba5f9db.jpg",
+    "width": 711,
+    "height": 625,
+    "blurDataURL": "data:image/webp;base64,UklGRmAAAABXRUJQVlA4IFQAAADwAQCdASoQAA4AA4BaJaACdAYv/yHR6TAA/rI67bVZVawLId4PJQ1TIyZsHIStUdDHdmE+cdAgwwtxKWu6cuUDVPAzRJRbLT7wY93su/hu6qmo4AA=",
+    "color": "#080808"
+  },
+  "afternoon-from-terrace": {
+    "src": "/photos/afternoon-from-terrace.c5a9f9fd.jpg",
+    "width": 1512,
+    "height": 1210,
+    "blurDataURL": "data:image/webp;base64,UklGRlYAAABXRUJQVlA4IEoAAACwAQCdASoQAA0AA4BaJagCdACxf0zoAP6pgsEG62SRRg//T+kMxREJnKz/qevnWcpEXvrlysGL0X4P8DWd3eIiWQEv1uY1ZkKAAA==",
+    "color": "#080808"
+  }
+}
