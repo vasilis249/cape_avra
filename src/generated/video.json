@@ -1,24 +1,26 @@
 {
   "landscape": {
-    "src": "/video/hero-landscape.b2657ba3.mp4",
-    "webm": "/video/hero-landscape.aa5b6a4c.webm",
-    "bytes": 5138240,
+    "src": "/video/hero-landscape.fe8d1f69.mp4",
+    "webm": "/video/hero-landscape.549fb9c4.webm",
+    "bytes": 4197182,
+    "seconds": 21.23,
     "poster": {
-      "src": "/video/hero-landscape-poster.098f6a3c.jpg",
+      "src": "/video/hero-landscape-poster.bf63ce5d.jpg",
       "width": 1440,
       "height": 900,
-      "blurDataURL": "data:image/webp;base64,UklGRk4AAABXRUJQVlA4IEIAAADwAQCdASoQAAoAA4BaJQBOiP/wMaD0kgAA/eKcMswvuXeso+izJtgmbuOxeIpONFrn5CgyFos7i3bdNLj6p0QwAAA="
+      "blurDataURL": "data:image/webp;base64,UklGRk4AAABXRUJQVlA4IEIAAAAwAgCdASoQAAoAA4BaJQBOiP/wN0JtBeOgAAD9/IFioaoPuEC8cl6ji4L3QbcpBQWiPSONPGckHZNNIKh7hRg3ZAA="
     }
   },
   "portrait": {
-    "src": "/video/hero-portrait.da313bcd.mp4",
-    "webm": "/video/hero-portrait.2af28cdf.webm",
-    "bytes": 3458394,
+    "src": "/video/hero-portrait.6eb4129e.mp4",
+    "webm": "/video/hero-portrait.1305bc6e.webm",
+    "bytes": 3138671,
+    "seconds": 21.23,
     "poster": {
-      "src": "/video/hero-portrait-poster.3a02ebc7.jpg",
+      "src": "/video/hero-portrait-poster.891beaf8.jpg",
       "width": 810,
       "height": 1440,
-      "blurDataURL": "data:image/webp;base64,UklGRmgAAABXRUJQVlA4IFwAAADwAwCdASoQAB0APu1kqU4ppaOiMAgBMB2JZgCsGuABFp8z15hJtCxgAP4iEl2LhmDHzfqqHfNFSUPXhqPV61vt5mthY4XyNcWX3HpE6WT6nwaiVwXDZ7fASomAAA=="
+      "blurDataURL": "data:image/webp;base64,UklGRmoAAABXRUJQVlA4IF4AAADwAwCdASoQAB0APu1iqU2ppaOiMAgBMB2JaAC7GuABFp8x3cA/cLDAAP4iEzYHADh71NR1gVM9OWZ+yJq4/+LuudNWgFgD0eDZDF2YSLqdDvwFuA99W6Vm0HOAoIAA"
     }
   }
 }
