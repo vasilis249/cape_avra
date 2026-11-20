@@ -54,8 +54,11 @@ src/lib/                  photos, seo (hreflang/OG), structured-data, cn
   Greek and English must be kept in sync (same keys).
 - **Photos**: add to `content/photos.ts`, run `npm run photos`, reference by id via `<Photo id=… sizes=…/>`.
   Never edit files in `photos/raw`. Output is EXIF/GPS-free and content-hashed.
-- **Hero video**: full-screen, slow-motion (0.4×, motion-interpolated to 30 fps), stabilised,
-  ping-pong loop (no jump), muted, decorative (`aria-hidden`). The poster (art-directed
+- **Hero video**: full-screen, one seamless loop built from several clips (`content/video.ts`
+  `clips`: sunset pan with the agaves, played in reverse → blue-hour sea, HDR tone-mapped),
+  joined by 2.5 s dissolves, with a final dissolve back into the opening so it never restarts
+  visibly. Slow motion 0.4× (motion-interpolated to 30 fps), stabilised, muted, decorative (`aria-hidden`).
+  To add a clip: copy the original into `videos/raw/`, add an entry to `clips`, run `npm run video`. The poster (art-directed
   landscape/portrait `<picture>`) paints first; `<HeroVideo>` loads the video only after `load`,
   picks landscape/portrait + MP4/WebM, skips autoplay under reduced-motion / Save-Data / 2G,
   pauses off-screen, and has a visible pause/play button (WCAG 2.2.2). Pipeline needs ffmpeg;
