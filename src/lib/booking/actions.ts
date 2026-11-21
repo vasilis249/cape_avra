@@ -1,10 +1,9 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getPathname } from "@/i18n/navigation";
-import { rateLimited } from "@/lib/rate-limit";
+import { clientIp, rateLimited } from "@/lib/rate-limit";
 import { paymentDeps } from "@/lib/payments/deps";
 import { PaymentsUnavailableError } from "@/lib/payments/provider";
 import { beginBalancePayment, beginCheckout, cancelReservation, syncPayment } from "@/lib/payments/service";
@@ -13,10 +12,6 @@ import { holdStay, type HoldResult } from "./service";
 import { getBookingStore, type GuestDetails, type Reservation } from "./store";
 import { canAccess, tokenMatches } from "./tokens";
 
-async function clientIp() {
-  const h = await headers();
-  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "local";
-}
 
 /** Step 1: hold the dates for a few minutes and return the guest's private checkout link parts. */
 export async function startBooking(input: { checkIn: string; checkOut: string; guests: number; locale: "en" | "el" }): Promise<

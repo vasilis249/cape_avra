@@ -25,7 +25,11 @@ export async function Highlights() {
       </Container>
 
       {/* Phones: swipeable row. Desktop: three columns. */}
-      <ul className="mt-12 flex snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-4 [scrollbar-width:none] sm:px-8 lg:mx-auto lg:grid lg:max-w-site lg:grid-cols-3 lg:gap-8 lg:overflow-visible lg:px-12 lg:pb-0">
+      {/* focusable so keyboard users can scroll it (WCAG 2.1.1); the focus ring shows only on keyboard focus */}
+      <ul
+        tabIndex={0}
+        aria-labelledby="highlights-title"
+        className="mt-12 flex snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-4 [scrollbar-width:none] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ionian sm:px-8 lg:mx-auto lg:grid lg:max-w-site lg:grid-cols-3 lg:gap-8 lg:overflow-visible lg:px-12 lg:pb-0">
         {items.map((item, i) => (
           <li key={item.key} className="w-[82vw] max-w-sm shrink-0 snap-start sm:w-[60vw] lg:w-auto lg:max-w-none">
             <Reveal delay={i * 120}>

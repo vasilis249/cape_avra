@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { bookingSeed } from "@content/booking";
+import { addDays as addDaysLocal } from "@/lib/booking/dates";
 import { quoteStay } from "@/lib/booking/pricing";
 import { FileStore, type BookingStore, type CalendarBlock, type Payment, type Reservation } from "@/lib/booking/store";
 import { leadsToCsv, type LeadRow } from "@/lib/leads/store";
@@ -176,5 +177,49 @@ describe("owner tools (file store, simulated payments)", () => {
     expect((await store.listReservations({ scope: "upcoming", today: "2026-11-21" })).map((x) => x.id)).toEqual([r.id]);
     expect(await store.listReservations({ scope: "past", today: "2026-11-21" })).toEqual([]);
     expect((await store.listReservations({ scope: "all", today: "2026-11-21", q: "G@EXAMPLE" })).length).toBe(1);
+  });
+});
+
+describe("data retention", () => {
+  it("purges never-paid checkouts after the cut-off, keeps paid and recent ones", async () => {
+    const file = path.join(await mkdtemp(path.join(tmpdir(), "cape-gdpr-")), "booking.json");
+    const store = new FileStore(file);
+    const quote = quoteStay(config, { checkIn: "2027-06-12", checkOut: "2027-06-19", guests: 2 }, "2026-11-21");
+    const mk = async (ref: string, checkIn: string) => (await store.createHold({ ref, tokenHash: "h", checkIn, checkOut: addDaysLocal(checkIn, 7), guests: 2, locale: "en", quote, holdMinutes: 15 }))!;
+    const a = await mk("CA-OLD1-AA", "2027-06-12");
+    const b = await mk("CA-OLD2-AA", "2027-07-03");
+    await store.createPayment({ reservationId: b.id, kind: "deposit", provider: "test", providerRef: "p1", amountCents: 1, currency: "EUR", status: "failed" });
+    const { readFile, writeFile } = await import("node:fs/promises");
+    const db = JSON.parse(await readFile(file, "utf8"));
+    for (const r of db.reservations) Object.assign(r, { status: "expired", createdAt: "2026-01-01T00:00:00.000Z" });
+    await writeFile(file, JSON.stringify(db));
+    expect(await store.purgeAbandoned("2026-06-01T00:00:00.000Z")).toBe(1);
+    expect(await store.getById(a.id)).toBeNull();
+    expect(await store.getById(b.id)).not.toBeNull(); // has a payment record: kept
+  });
+});
+
+describe("security invariants", () => {
+  it("every admin server action checks the session first (except sign-in itself)", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const src = await readFile(path.join(process.cwd(), "src/lib/admin/actions.ts"), "utf8");
+    const publicOnes = new Set(["requestLoginLink", "verifyLogin", "logout"]);
+    const fns = [...src.matchAll(/export async function (\w+)\([^)]*\)[^{]*\{\n([^\n]*)/g)];
+    expect(fns.length).toBeGreaterThan(10);
+    for (const [, name, firstLine] of fns) {
+      if (publicOnes.has(name)) continue;
+      expect(firstLine.trim(), name).toBe("await requireAdmin();");
+    }
+  });
+
+  it("every admin page and route handler checks the session", async () => {
+    const { readFile, readdir } = await import("node:fs/promises");
+    const root = path.join(process.cwd(), "src/app/admin");
+    const files = (await readdir(root, { recursive: true })).filter((f) => /(^|\/)(page|route)\.tsx?$/.test(f) && !f.startsWith("login"));
+    expect(files.length).toBeGreaterThanOrEqual(8);
+    for (const f of files) {
+      const src = await readFile(path.join(root, f), "utf8");
+      expect(/await (requireAdmin|getAdmin)\(\)/.test(src), f).toBe(true);
+    }
   });
 });

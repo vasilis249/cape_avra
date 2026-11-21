@@ -274,15 +274,12 @@ export function BookingWidget({ locale, labels }: { locale: "en" | "el"; labels:
             {labels.legendAvailable}
           </li>
           <li className="flex items-center gap-2">
-            <span aria-hidden="true" className="text-ink-soft/50 line-through decoration-limestone">
-              14
-            </span>
+            {/* sample of a booked day, drawn as decoration (it is not text, so its low contrast is intended) */}
+            <span aria-hidden="true" className="text-ink-soft/50 line-through decoration-limestone before:content-['14']" />
             {labels.legendBooked}
           </li>
           <li className="flex items-center gap-2">
-            <span aria-hidden="true" className="text-ink-soft/70">
-              14
-            </span>
+            <span aria-hidden="true" className="text-ink-soft/70 before:content-['14']" />
             {labels.legendNoArrival}
           </li>
         </ul>

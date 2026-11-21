@@ -23,8 +23,9 @@ before using an API from memory.
 - [x] **Phase 5**: admin panel at `/admin` (Greek): email-link sign-in, dashboard (revenue, occupancy,
       arrivals, attention), bookings (notes, refunds, owner cancel, security deposit, resend), calendar
       (manual blocks, sync now), prices & seasons editor, leads + CSV, photo uploads per section
-      ← *done, awaiting owner review*
-- [ ] Phase 6: tests, security review, WCAG AA, Lighthouse, launch checklist
+- [x] **Phase 6**: edge-case + randomised tests, security review & fixes (docs/SECURITY.md), CSP and
+      security headers, axe WCAG AA sweep (0 violations), Lighthouse, GDPR retention job, CI,
+      launch checklist (docs/LAUNCH.md) ← *done, awaiting owner review*
 
 Work in phases; stop at the end of each, summarise, give run/test steps, wait for the owner's "go".
 Commit after each working step. Develop on branch `claude/focused-thompson-tknjd4`.
@@ -56,7 +57,11 @@ content/location.ts       map bearings, beaches, days out, tavernas (empty = "co
 src/app/[locale]/         pages (root layout lives here; locale is a root param)
 src/lib/leads/            form schemas (zod), server actions, storage (Supabase REST / .data fallback)
 supabase/migrations/      SQL for the database (leads table, RLS on, no public policies)
-docs/DEPLOY.md            Vercel / Supabase / Resend setup for the owner
+docs/DEPLOY.md            Vercel / Supabase / Resend / Stripe / admin setup for the owner
+docs/SECURITY.md          security review: threats, controls, residual risks
+docs/LAUNCH.md            launch checklist (owner content, accounts, rehearsal, go-live)
+security-headers.ts       CSP + security headers (next.config.ts); add any new third-party host here
+.github/workflows/ci.yml  lint, typecheck, tests against Postgres (migrations applied), both builds
 content/booking.ts        seasons, rates, min stay, arrival days, fees, taxes, deposit, cancellation (seed)
 src/lib/booking/          pure logic (dates, pricing, availability, ical: shared client+server, tested)
                           + server: config loader, store (Postgres via DATABASE_URL / .data file), service,
@@ -142,6 +147,10 @@ src/lib/                  photos, seo (hreflang/OG), structured-data, cn
   config (validated by the same zod schema) and `updateTag("booking-config")` (terms page); photo
   uploads are resized in the browser (≤2400px, 4 MB server limit), re-encoded by sharp (metadata/GPS
   stripped), content-hashed, and `updateTag("site-photos")`. Interior spaces use slot `space-<key>`.
+- **Security headers**: a new external script/frame/API host must be added to `security-headers.ts`
+  (CSP) or it is blocked. Private pages (guest booking pages, admin, API) get `noindex` + same-origin referrer.
+- **Retention**: the daily job deletes leads after 24 months and never-paid checkouts after 90 days
+  (privacy policy says so; keep them in sync).
 - **Tests**: `npm test` (pure logic). Store integration tests run with `TEST_DATABASE_URL` pointing at a
   disposable Postgres with the migrations applied.
 - Secrets only in `.env.local` (git-ignored); document every variable in `.env.example`.
@@ -170,6 +179,7 @@ Photos are 1512px wide (chat-compressed); layouts are designed so they're never 
 npm run dev      # http://localhost:3000 → redirects to /en or /el
 npm run build && npm start
 npm run lint
+npm run typecheck  # route types + tsc
 npm test         # booking + payment logic (+ DB integration tests with TEST_DATABASE_URL)
 SITE_MODE=live npm run build   # build with the booking calendar instead of the early-booking form
 npm run photos   # after editing content/photos.ts or adding raw photos

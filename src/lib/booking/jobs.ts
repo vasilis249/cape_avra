@@ -1,7 +1,9 @@
 import "server-only";
 import { loadBookingConfig } from "./config";
-import { addDays, todayIn } from "./dates";
+import { addDays, addMonths, todayIn } from "./dates";
+import { LEAD_RETENTION_MONTHS, purgeOldLeads } from "@/lib/leads/store";
 import { sendPreArrivalEmail, sendReviewEmail } from "./emails";
+import { readCapped } from "@/lib/http/read-capped";
 import { parseICal } from "./ical";
 import { getBookingStore, type Reservation } from "./store";
 import { paymentDeps } from "@/lib/payments/deps";
@@ -26,6 +28,8 @@ export function configuredFeeds(): Record<string, string> {
   }
 }
 
+const MAX_FEED_BYTES = 5 * 1024 * 1024; // a year of bookings is a few KB; anything huge is wrong
+
 export type SyncResult = { source: string; ok: boolean; events?: number; error?: string };
 
 /** Import each feed; a failed or malformed fetch never wipes the existing blocks of that source. */
@@ -35,7 +39,7 @@ export async function syncCalendars(): Promise<SyncResult[]> {
   for (const [source, url] of Object.entries(configuredFeeds())) {
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(15_000), cache: "no-store", headers: { "User-Agent": "CapeAvra-CalendarSync/1.0" } });
-      const text = await res.text();
+      const text = await readCapped(res, MAX_FEED_BYTES);
       if (!res.ok || !text.includes("BEGIN:VCALENDAR")) throw new Error(`HTTP ${res.status}, not a calendar`);
       const events = parseICal(text);
       await store.replaceBlocks(source, events);
@@ -85,5 +89,13 @@ export async function runDaily(now = new Date()) {
   for (const r of await store.dueForEmail("review", addDays(today, -config.emails.reviewDaysAfter))) {
     await send(r, "review", () => sendReviewEmail(r));
   }
-  return { today, expiredHolds: expired, payments, emails: sent };
+  // data retention (privacy policy): abandoned checkouts after 90 days, requests after 24 months
+  const privacy = { abandonedCheckouts: 0, leads: 0 };
+  try {
+    privacy.abandonedCheckouts = await store.purgeAbandoned(new Date(now.getTime() - 90 * 86_400_000).toISOString());
+    privacy.leads = await purgeOldLeads(new Date(addMonths(today, -LEAD_RETENTION_MONTHS) + "T00:00:00Z").toISOString());
+  } catch (e) {
+    console.error("[daily] retention purge failed", e);
+  }
+  return { today, expiredHolds: expired, payments, emails: sent, privacy };
 }

@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import { submitContact, submitWaitlist } from "@/lib/leads/actions";
-import { initialFormState } from "@/lib/leads/schema";
+import { initialFormState } from "@/lib/leads/form-state";
 import { buttonClasses } from "@/components/ui/Button";
 import { Checkbox, Honeypot, SelectField, TextArea, TextField } from "./fields";
 

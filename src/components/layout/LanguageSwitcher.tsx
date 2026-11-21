@@ -32,7 +32,7 @@ export function LanguageSwitcher({
             aria-current={l === locale ? "true" : undefined}
             className={cn(
               "inline-flex min-h-11 min-w-9 items-center justify-center uppercase transition-opacity",
-              l === locale ? "opacity-100" : "opacity-60 hover:opacity-100",
+              l === locale ? "opacity-100" : "opacity-75 hover:opacity-100", // ≥ 4.5:1 on salt and on night
             )}
           >
             {l}

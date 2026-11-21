@@ -44,7 +44,7 @@ Some of these providers are based in the United States. Transfers are covered by
 
 ## How long we keep it
 
-Booking requests and messages that do not lead to a stay are deleted after 24 months at the latest. Booking records are kept for as long as Greek tax law requires. Your consent to receive news lasts until you withdraw it.
+Booking requests and messages that do not lead to a stay are deleted after 24 months at the latest. Details entered at checkout for a booking that is never paid are deleted after 90 days. Booking records are kept for as long as Greek tax law requires. Your consent to receive news lasts until you withdraw it.
 
 ## Your rights
 

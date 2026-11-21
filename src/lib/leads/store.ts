@@ -1,5 +1,5 @@
 import "server-only";
-import { appendFile, mkdir, readFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 export type LeadRecord = {
@@ -92,4 +92,33 @@ export function leadsToCsv(rows: LeadRow[]): string {
   };
   const lines = [CSV_COLUMNS.join(","), ...rows.map((r) => CSV_COLUMNS.map((c) => cell(r[c as keyof LeadRow])).join(","))];
   return "\ufeff" + lines.join("\r\n") + "\r\n";
+}
+
+/** GDPR retention (privacy policy: requests are deleted after 24 months at the latest). */
+export const LEAD_RETENTION_MONTHS = 24;
+
+export async function purgeOldLeads(before: string): Promise<number> {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (url && key) {
+    const res = await fetch(`${url.replace(/\/$/, "")}/rest/v1/leads?created_at=lt.${encodeURIComponent(before)}`, {
+      method: "DELETE",
+      headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: "return=representation" },
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error(`Supabase delete failed: ${res.status} ${await res.text()}`);
+    return ((await res.json()) as unknown[]).length;
+  }
+  if (process.env.VERCEL) return 0;
+  const file = path.join(process.cwd(), ".data", "leads.jsonl");
+  let text: string;
+  try {
+    text = await readFile(file, "utf8");
+  } catch {
+    return 0;
+  }
+  const lines = text.split("\n").filter(Boolean);
+  const keep = lines.filter((l) => (JSON.parse(l) as LeadRow).created_at >= before);
+  if (keep.length !== lines.length) await writeFile(file, keep.map((l) => l + "\n").join(""));
+  return lines.length - keep.length;
 }

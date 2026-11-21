@@ -1,7 +1,7 @@
 "use server";
 
 import { randomBytes } from "node:crypto";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { refresh, updateTag } from "next/cache";
 import { z } from "zod";
@@ -21,7 +21,7 @@ import {
   refundPayment,
   releaseSecurityDeposit,
 } from "@/lib/payments/service";
-import { rateLimited } from "@/lib/rate-limit";
+import { clientIp, rateLimited } from "@/lib/rate-limit";
 import { isPhotoSlot, SITE_PHOTOS_TAG } from "@/lib/site-photos";
 import { ADMIN_COOKIE, adminBaseUrl, adminConfigured, adminEmails, cookieOptions, encodeSession, LINK_MINUTES, requireAdmin } from "./auth";
 import { PhotoTooSmallError, processPhoto } from "./photo-processing";
@@ -33,10 +33,6 @@ const euros = (v: FormDataEntryValue | null) => {
   return Number.isFinite(n) ? Math.round(n * 100) : NaN;
 };
 
-async function clientIp() {
-  const h = await headers();
-  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "local";
-}
 
 /* ------------------------------------------------------------------ login */
 

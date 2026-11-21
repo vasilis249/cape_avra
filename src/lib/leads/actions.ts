@@ -1,9 +1,8 @@
 "use server";
 
-import { headers } from "next/headers";
 import { after } from "next/server";
 import { emailLayout, sendEmail } from "@/lib/email";
-import { rateLimited } from "@/lib/rate-limit";
+import { clientIp, rateLimited } from "@/lib/rate-limit";
 import { siteConfig } from "@content/site.config";
 import { contactSchema, dateIssues, waitlistSchema, type FormState } from "./schema";
 import { saveLead, StoreUnavailableError, type LeadRecord } from "./store";
@@ -16,9 +15,7 @@ async function guard(form: FormData): Promise<FormState | null> {
   if (form.get("website")) return { status: "success", email: String(form.get("email") ?? "") };
   const started = Number(form.get("startedAt") ?? 0);
   if (started && Date.now() - started < MIN_FILL_MS) return { status: "success", email: String(form.get("email") ?? "") };
-  const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "local";
-  if (rateLimited(ip)) return { status: "error", formError: "rate", values: values(form) };
+  if (rateLimited(`lead:${await clientIp()}`)) return { status: "error", formError: "rate", values: values(form) };
   return null;
 }
 

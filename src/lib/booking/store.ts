@@ -156,6 +156,8 @@ export interface BookingStore {
   saveLoginToken(tokenHash: string, email: string, expiresAt: string): Promise<void>;
   /** marks the token used; returns its email if it was valid, unused and not expired */
   consumeLoginToken(tokenHash: string): Promise<string | null>;
+  /** GDPR: delete never-paid (expired) reservations created before `before`; returns how many */
+  purgeAbandoned(before: string): Promise<number>;
   listSitePhotos(): Promise<SitePhoto[]>;
   saveSitePhoto(p: Omit<SitePhoto, "updatedAt">): Promise<void>;
   deleteSitePhoto(slot: string): Promise<SitePhoto | null>;
@@ -504,6 +506,15 @@ class PostgresStore implements BookingStore {
        where token_hash = ${tokenHash} and used_at is null and expires_at > now()
        returning email`;
     return r ? String(r.email) : null;
+  }
+
+  async purgeAbandoned(before: string) {
+    const rows = await this.sql`
+      delete from reservations r
+       where r.status = 'expired' and r.created_at < ${before}
+         and not exists (select 1 from payments p where p.reservation_id = r.id)
+       returning id`;
+    return rows.length;
   }
 
   async listSitePhotos() {
@@ -907,6 +918,14 @@ export class FileStore implements BookingStore {
       if (!t || t.usedAt || t.expiresAt <= this.now()) return null;
       t.usedAt = this.now();
       return t.email;
+    }, true);
+  }
+  purgeAbandoned(before: string) {
+    return this.tx((db) => {
+      const keep = db.reservations.filter((r) => !(r.status === "expired" && r.createdAt < before && !db.payments.some((p) => p.reservationId === r.id)));
+      const n = db.reservations.length - keep.length;
+      db.reservations = keep;
+      return n;
     }, true);
   }
   listSitePhotos() {

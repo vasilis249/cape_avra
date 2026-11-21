@@ -66,15 +66,5 @@ export const contactSchema = z.object({
 export type WaitlistInput = z.infer<typeof waitlistSchema>;
 export type ContactInput = z.infer<typeof contactSchema>;
 
-export type FormState = {
-  status: "idle" | "success" | "error";
-  /** field → error code */
-  fieldErrors?: Record<string, string>;
-  /** generic | rate | unavailable */
-  formError?: "generic" | "rate" | "unavailable";
-  email?: string;
-  /** submitted values, returned on error so the form can refill (React resets forms after an action) */
-  values?: Record<string, string>;
-};
-
-export const initialFormState: FormState = { status: "idle" };
+// client-safe part lives in form-state.ts so the browser bundle does not include zod
+export { initialFormState, type FormState } from "./form-state";

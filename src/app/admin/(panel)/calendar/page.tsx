@@ -145,29 +145,41 @@ function Month({ first, days, today }: { first: ISODate; days: Map<ISODate, DayI
   const next = addMonths(first, 1);
   const cells: (ISODate | null)[] = Array.from({ length: offset }, () => null);
   for (let d = first; d < next; d = addDays(d, 1)) cells.push(d);
+  while (cells.length % 7) cells.push(null);
+  const weeks = Array.from({ length: cells.length / 7 }, (_, w) => cells.slice(w * 7, w * 7 + 7));
   const wd = A.pricing.weekdays;
   return (
     <section className="border border-limestone/60 bg-white p-4">
-      <h2 className="mb-3 font-display text-xl text-ionian capitalize">{title}</h2>
-      <div className="grid grid-cols-7 gap-1 text-center text-[0.8125rem]" role="grid" aria-label={title}>
-        {[1, 2, 3, 4, 5, 6, 0].map((i) => (
-          <div key={i} className="pb-1 text-[0.75rem] text-ink-soft" role="columnheader">{wd[i]}</div>
-        ))}
-        {cells.map((d, i) => {
-          if (!d) return <div key={`x${i}`} />;
-          const info = days.get(d);
-          const content = (
-            <span className={cn("flex aspect-square items-center justify-center tabular-nums", info ? KIND_STYLE[info.kind] : "bg-salt", d === today && "ring-2 ring-dusk ring-inset", d < today && "opacity-50")}>
-              {Number(d.slice(8))}
-            </span>
-          );
-          return (
-            <div key={d} role="gridcell" title={info ? `${shortDate(d)} · ${info.label}` : shortDate(d)}>
-              {info?.href ? <Link href={info.href} aria-label={`${shortDate(d)}: ${info.label}`}>{content}</Link> : content}
-            </div>
-          );
-        })}
-      </div>
+      <table className="w-full table-fixed border-separate border-spacing-1 text-center text-[0.8125rem]">
+        <caption className="mb-2 text-left font-display text-xl text-ionian capitalize">{title}</caption>
+        <thead>
+          <tr>
+            {[1, 2, 3, 4, 5, 6, 0].map((i) => (
+              <th key={i} scope="col" className="pb-1 font-sans text-[0.75rem] font-normal text-ink-soft">{wd[i]}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {weeks.map((week, w) => (
+            <tr key={w}>
+              {week.map((d, i) => {
+                if (!d) return <td key={`x${i}`} />;
+                const info = days.get(d);
+                const content = (
+                  <span className={cn("flex aspect-square items-center justify-center tabular-nums", info ? KIND_STYLE[info.kind] : d < today ? "bg-salt text-ink-soft" : "bg-salt", d === today && "ring-2 ring-dusk ring-inset")}>
+                    {Number(d.slice(8))}
+                  </span>
+                );
+                return (
+                  <td key={d} title={info ? `${shortDate(d)} · ${info.label}` : shortDate(d)} className="p-0">
+                    {info?.href ? <Link href={info.href} aria-label={`${shortDate(d)}: ${info.label}`}>{content}</Link> : info ? <span><span className="sr-only">{`${shortDate(d)}: ${info.label}`}</span><span aria-hidden>{content}</span></span> : content}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </section>
   );
 }

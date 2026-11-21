@@ -14,4 +14,7 @@ export const sans = Commissioner({
   subsets: ["latin", "greek"],
   variable: "--font-commissioner",
   display: "swap",
+  // not preloaded: body text paints at once in the metric-matched fallback and swaps without layout
+  // shift, so only the headline font (display: optional) competes with the first paint
+  preload: false,
 });

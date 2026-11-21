@@ -164,4 +164,14 @@ suite("PostgresStore (integration)", () => {
     expect(await store.listReservations({ scope: "all", today: "2026-11-21", q: "%" })).toEqual([]); // LIKE wildcards are literal
     expect((await store.allPayments()).length).toBeGreaterThan(0);
   });
+
+  it("retention: deletes only never-paid expired reservations older than the cut-off", async () => {
+    const old = await hold("CA-GDPR-01", "2028-05-10", "2028-05-15");
+    const paid = await hold("CA-GDPR-02", "2028-05-20", "2028-05-25");
+    await store.createPayment({ reservationId: paid!.id, kind: "deposit", provider: "test", providerRef: "pi_gdpr", amountCents: 1, currency: "EUR", status: "failed" });
+    await sql`update reservations set status = 'expired', created_at = now() - interval '100 days' where ref in ('CA-GDPR-01', 'CA-GDPR-02')`;
+    expect(await store.purgeAbandoned(new Date(Date.now() - 90 * 86_400_000).toISOString())).toBe(1);
+    expect(await store.getById(old!.id)).toBeNull();
+    expect(await store.getById(paid!.id)).not.toBeNull();
+  });
 });
