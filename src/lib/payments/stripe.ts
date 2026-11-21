@@ -48,7 +48,13 @@ const PI_EVENTS = new Set([
 ]);
 
 export function createStripeProvider(secretKey: string, publishableKey: string, webhookSecret = process.env.STRIPE_WEBHOOK_SECRET): PaymentProvider {
-  const stripe = new Stripe(secretKey, { maxNetworkRetries: 2, timeout: 20_000, appInfo: { name: "Cape Avra booking" } });
+  // fetch-based client: works on Vercel (Node and Edge) and behind HTTPS proxies (NODE_USE_ENV_PROXY=1)
+  const stripe = new Stripe(secretKey, {
+    maxNetworkRetries: 2,
+    timeout: 20_000,
+    httpClient: Stripe.createFetchHttpClient(),
+    appInfo: { name: "Cape Avra booking" },
+  });
 
   /** off-session confirmations that fail throw; return the failed intent instead */
   async function offSession(params: Stripe.PaymentIntentCreateParams, idempotencyKey: string): Promise<ProviderPayment> {
