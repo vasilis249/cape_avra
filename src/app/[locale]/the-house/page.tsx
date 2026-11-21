@@ -8,6 +8,7 @@ import { Reveal } from "@/components/motion/Reveal";
 import { BookingCta } from "@/components/sections/home/BookingCta";
 import { Container, Eyebrow, Hairline, Section } from "@/components/ui/Layout";
 import { currentLocale, pageMetadata } from "@/lib/page-meta";
+import { spacePhoto } from "@/lib/site-photos";
 import { amenities, bedrooms, capacity, spaces } from "@content/property";
 import { siteConfig } from "@content/site.config";
 
@@ -85,7 +86,7 @@ export default async function HousePage() {
               <p className="mt-6 text-ink-soft">{t("insideText")}</p>
             </Reveal>
             <ul className="mt-12 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
-              {spaces.map((s, i) => (
+              {(await Promise.all(spaces.map(async (s) => ({ ...s, photo: await spacePhoto(s.key, s.photo) })))).map((s, i) => (
                 <li key={s.key}>
                   <Reveal delay={i * 90}>
                     {s.photo ? (

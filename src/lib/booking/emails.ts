@@ -115,14 +115,15 @@ export function createEmailNotifier(config: BookingConfig): Notifier {
       if (!r.guest) return;
       const m = M[r.locale].cancellation;
       const money = formatMoney(refundCents, r.locale);
-      const mail = emailLayout(m.title, stayRows(r, config, payments).slice(0, 5), fill(m.intro, { name: r.guest.name, ref: r.ref }), {
+      const intro = r.cancellation?.by === "owner" ? m.introOwner : m.intro;
+      const mail = emailLayout(m.title, stayRows(r, config, payments).slice(0, 5), fill(intro, { name: r.guest.name, ref: r.ref }), {
         outro: refundCents > 0 ? fill(m.refund, { amount: money }) : m.noRefund,
         note: isTest(payments) ? M[r.locale].confirmation.testNote : undefined,
       });
       await sendEmail({ to: r.guest.email, subject: fill(m.subject, { ref: r.ref }), replyTo: siteConfig.contact.email, ...mail });
       const owner = emailLayout(`Ακύρωση κράτησης ${r.ref}`, [
         ["Κράτηση", `${r.ref} · ${r.checkIn} → ${r.checkOut}`],
-        ["Από", r.cancellation?.by === "guest" ? "Επισκέπτη (online)" : (r.cancellation?.by ?? "—")],
+        ["Από", r.cancellation?.by === "guest" ? "Επισκέπτη (online)" : r.cancellation?.by === "owner" ? "Εσάς (διαχείριση)" : (r.cancellation?.by ?? "—")],
         ["Επιστροφή", `${formatMoney(refundCents, "el")} (${r.cancellation?.refundPercent ?? 0}% των πληρωμών)`],
         ...guestRows(r),
       ], "Οι ημερομηνίες είναι ξανά διαθέσιμες στο ημερολόγιο.");

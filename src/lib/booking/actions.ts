@@ -151,7 +151,7 @@ export async function cancelBooking(_: CancelState, form: FormData): Promise<Can
   if (!r) return { status: "error", error: "generic" };
   try {
     const deps = await paymentDeps();
-    const res = await cancelReservation(deps, r, todayIn(deps.config.timeZone), "guest");
+    const res = await cancelReservation(deps, r, todayIn(deps.config.timeZone), { by: "guest" });
     if (!res.ok) return { status: "error", error: "notAllowed" };
   } catch (e) {
     console.error(`[booking] cancellation of ${v.ref} failed`, e);

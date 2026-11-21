@@ -1,11 +1,10 @@
 import Image from "next/image";
 import { getLocale } from "next-intl/server";
-import type { PhotoId } from "@content/photos";
-import { getPhoto } from "@/lib/photos";
+import { resolvePhoto, type PhotoSlot } from "@/lib/site-photos";
 import { cn } from "@/lib/cn";
 
 type PhotoProps = {
-  id: PhotoId;
+  id: PhotoSlot;
   /** Responsive `sizes` hint, e.g. "(min-width: 1024px) 50vw, 100vw". Required for good srcsets. */
   sizes: string;
   /** Fill the (positioned, sized) parent. Otherwise renders at intrinsic aspect ratio. */
@@ -34,7 +33,7 @@ export async function Photo({
   quality = 70,
 }: PhotoProps) {
   const locale = (await getLocale()) as "en" | "el";
-  const p = getPhoto(id, locale);
+  const p = await resolvePhoto(id, locale); // admin uploads override the registry
   const alt = decorative ? "" : p.alt;
   const common = {
     src: p.src,

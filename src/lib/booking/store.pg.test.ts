@@ -22,11 +22,11 @@ suite("PostgresStore (integration)", () => {
   beforeAll(async () => {
     process.env.DATABASE_URL = url;
     sql = postgres(url!, { max: 1 });
-    await sql`truncate reservations, calendar_blocks, payments, payment_events cascade`;
+    await sql`truncate reservations, calendar_blocks, payments, payment_events, reservation_notes, admin_login_tokens, site_photos, booking_config cascade`;
     store = (await import("./store")).getBookingStore();
   });
   afterAll(async () => {
-    await sql`truncate reservations, calendar_blocks, payments, payment_events cascade`;
+    await sql`truncate reservations, calendar_blocks, payments, payment_events, reservation_notes, admin_login_tokens, site_photos, booking_config cascade`;
     await sql.end();
   });
 
@@ -124,5 +124,44 @@ suite("PostgresStore (integration)", () => {
     expect((await store.securityHoldsToRelease("2027-09-07", 2)).map((p) => p.providerRef)).toEqual(["pi_sec"]);
     await store.updatePayment("pi_sec", { status: "canceled" }); // lapsed after 7 days → re-placed while in the window
     expect((await store.securityHoldsToPlace("2027-09-04", 2)).map((x) => x.ref)).toEqual(["CA-LATE-01"]);
+  });
+
+  it("admin: manual blocks, single-use login tokens, config, notes, photos, lists", async () => {
+    const r = (await store.getByRef("CA-LATE-01"))!; // confirmed 2027-09-01 → 05
+    expect(await store.addManualBlock("2027-09-04", "2027-09-07", "x")).toBe("booked");
+    const b = await store.addManualBlock("2027-09-05", "2027-09-07", "family");
+    expect(b).toMatchObject({ source: "manual", start: "2027-09-05", end: "2027-09-07", summary: "family" });
+    expect((await store.exportEvents()).some((e) => e.start === "2027-09-05")).toBe(true);
+    expect(await store.removeManualBlock((b as { id: string }).id)).toBe(true);
+    expect(await store.removeManualBlock((b as { id: string }).id)).toBe(false);
+
+    await store.saveLoginToken("h1", "o@example.com", new Date(Date.now() + 60_000).toISOString());
+    const twice = await Promise.all([store.consumeLoginToken("h1"), store.consumeLoginToken("h1")]);
+    expect(twice.filter(Boolean)).toEqual(["o@example.com"]);
+    await store.saveLoginToken("h2", "o@example.com", new Date(Date.now() - 1000).toISOString());
+    expect(await store.consumeLoginToken("h2")).toBeNull();
+
+    await store.saveConfig({ a: 1 });
+    await store.saveConfig({ a: 2 });
+    expect(await store.loadConfig()).toEqual({ a: 2 });
+    await store.saveConfig(null);
+    expect(await store.loadConfig()).toBeNull();
+
+    await store.addNote(r.id, "first");
+    await store.addNote(r.id, "second");
+    expect((await store.listNotes(r.id)).map((n) => n.body)).toEqual(["first", "second"]);
+
+    const photo = { slot: "space-living", path: "site/space-living-0123456789ab.jpg", width: 10, height: 5, blur: "b", color: "#fff", alt: { en: "e", el: "ε" }, focal: null };
+    await store.saveSitePhoto(photo);
+    await store.saveSitePhoto({ ...photo, width: 20 });
+    expect((await store.listSitePhotos()).map((p) => [p.slot, p.width])).toEqual([["space-living", 20]]);
+    expect((await store.deleteSitePhoto("space-living"))?.slot).toBe("space-living");
+    expect(await store.deleteSitePhoto("space-living")).toBeNull();
+
+    expect((await store.listReservations({ scope: "upcoming", today: "2026-11-21" })).map((x) => x.ref)).toContain("CA-LATE-01");
+    expect(await store.listReservations({ scope: "past", today: "2026-11-21" })).toEqual([]);
+    expect((await store.listReservations({ scope: "all", today: "2026-11-21", q: "late-01" })).map((x) => x.ref)).toEqual(["CA-LATE-01"]);
+    expect(await store.listReservations({ scope: "all", today: "2026-11-21", q: "%" })).toEqual([]); // LIKE wildcards are literal
+    expect((await store.allPayments()).length).toBeGreaterThan(0);
   });
 });

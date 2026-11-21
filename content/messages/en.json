@@ -471,7 +471,8 @@
       "title": "Booking cancelled",
       "intro": "Dear {name},\n\nas requested, your booking {ref} has been cancelled.",
       "refund": "A refund of {amount} is on its way to your card. It usually appears within 5 to 10 working days.",
-      "noRefund": "Under the cancellation policy, no refund is due for this cancellation. If you have any questions, simply reply to this email."
+      "noRefund": "Under the cancellation policy, no refund is due for this cancellation. If you have any questions, simply reply to this email.",
+      "introOwner": "Dear {name},\n\nwe are sorry to let you know that your booking {ref} has been cancelled. If you have any questions, simply reply to this email."
     },
     "conflict": {
       "subject": "Your payment has been refunded · {ref}",

@@ -238,17 +238,25 @@ export function cancellationPreview(config: BookingConfig, r: Reservation, payme
 }
 
 /** Guest (or, later, the owner) cancels: refund per the tiers, release holds, stop the balance charge. */
-export async function cancelReservation(deps: Deps, r: Reservation, today: ISODate, by: "guest" | "owner" = "guest", reason?: string) {
+export async function cancelReservation(
+  deps: Deps,
+  r: Reservation,
+  today: ISODate,
+  opts: { by?: "guest" | "owner"; reason?: string; /** owner only: refund this instead of the policy amount */ refundCents?: number } = {},
+) {
   const { store, provider, config, notify } = deps;
+  const by = opts.by ?? "guest";
   const payments = await store.listPayments(r.id);
   const preview = cancellationPreview(config, r, payments, today);
-  if (!preview.allowed && by === "guest") return { ok: false as const, code: "notAllowed" as const };
+  if (by === "guest" ? !preview.allowed : r.status !== "confirmed") return { ok: false as const, code: "notAllowed" as const };
+  const refundCents = by === "owner" && opts.refundCents !== undefined ? Math.max(0, Math.min(Math.round(opts.refundCents), preview.paidCents)) : preview.refundCents;
+  const refundPercent = preview.paidCents > 0 ? Math.round((refundCents / preview.paidCents) * 100) : 0;
 
-  const cancelled = await store.cancel(r.id, { by, at: new Date().toISOString(), refundPercent: preview.percent, refundCents: preview.refundCents, reason });
+  const cancelled = await store.cancel(r.id, { by, at: new Date().toISOString(), refundPercent, refundCents, reason: opts.reason });
   if (!cancelled) return { ok: false as const, code: "notAllowed" as const };
 
   // refund newest payments first (normally the balance, then the deposit)
-  let left = preview.refundCents;
+  let left = refundCents;
   for (const p of [...payments].reverse()) {
     if (left <= 0) break;
     if (!STAY_KINDS.includes(p.kind) || p.status !== "succeeded") continue;
@@ -267,12 +275,45 @@ export async function cancelReservation(deps: Deps, r: Reservation, today: ISODa
   }
   const finalPayments = await store.listPayments(r.id);
   if (await store.claimEmail(r.id, "cancellation")) {
-    await notify.cancelled(cancelled, preview.refundCents, finalPayments).catch(async (e) => {
+    await notify.cancelled(cancelled, refundCents, finalPayments).catch(async (e) => {
       console.error(`[payments] cancellation emails ${r.ref}`, e);
       await store.releaseEmail(r.id, "cancellation");
     });
   }
-  return { ok: true as const, reservation: cancelled, refundCents: preview.refundCents };
+  return { ok: true as const, reservation: cancelled, refundCents };
+}
+
+/* ------------------------------------------------------------ owner tools */
+
+/** Partial refund without cancelling (goodwill, a broken appliance…). */
+export async function refundPayment(deps: Deps, r: Reservation, paymentRef: string, cents: number) {
+  const p = await deps.store.getPayment(paymentRef);
+  if (!p || p.reservationId !== r.id || !STAY_KINDS.includes(p.kind) || p.status !== "succeeded") return { ok: false as const, code: "notRefundable" as const };
+  const amount = Math.round(cents);
+  if (amount <= 0 || amount > p.amountCents - p.refundedCents) return { ok: false as const, code: "tooMuch" as const };
+  // key includes the state, so a double submit is deduplicated but a later second refund is not
+  const { refundedCents } = await deps.provider.refund(paymentRef, amount, `manual-${paymentRef}-${p.refundedCents}-${amount}`);
+  await deps.store.updatePayment(paymentRef, { refundedCents });
+  return { ok: true as const, refundedCents };
+}
+
+/** Keep part (or all) of the security deposit; the rest of the authorisation is released by the card network. */
+export async function keepSecurityDeposit(deps: Deps, r: Reservation, paymentRef: string, cents: number) {
+  const p = await deps.store.getPayment(paymentRef);
+  if (!p || p.reservationId !== r.id || p.kind !== "security_deposit" || p.status !== "authorized") return { ok: false as const, code: "notAuthorized" as const };
+  const amount = Math.round(cents);
+  if (amount <= 0 || amount > p.amountCents) return { ok: false as const, code: "tooMuch" as const };
+  const captured = await deps.provider.capture(paymentRef, amount);
+  await deps.store.updatePayment(paymentRef, { amountCents: amount });
+  await syncPayment(deps, captured);
+  return { ok: true as const };
+}
+
+export async function releaseSecurityDeposit(deps: Deps, r: Reservation, paymentRef: string) {
+  const p = await deps.store.getPayment(paymentRef);
+  if (!p || p.reservationId !== r.id || p.kind !== "security_deposit" || p.status !== "authorized") return { ok: false as const, code: "notAuthorized" as const };
+  await syncPayment(deps, await deps.provider.cancel(paymentRef));
+  return { ok: true as const };
 }
 
 /* ------------------------------------------------------------------- jobs */

@@ -2,7 +2,9 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { marked } from "marked";
 import type { Locale } from "@/i18n/routing";
-import { bookingSeed } from "@content/booking";
+import { cacheTag } from "next/cache";
+import { BOOKING_CONFIG_TAG, loadBookingConfig } from "@/lib/booking/config";
+import type { BookingConfig } from "@/lib/booking/config-schema";
 import { capacity, stayTimes } from "@content/property";
 import { siteConfig } from "@content/site.config";
 
@@ -14,7 +16,9 @@ export type MarkdownPage = { title: string; description: string; updated: string
  * (email, ΑΜΑ, capacity…) are written once.
  */
 export async function loadMarkdownPage(locale: Locale, slug: string): Promise<MarkdownPage> {
-  "use cache"; // file content only changes with a deploy
+  "use cache"; // file content changes with a deploy; the payment facts when the admin saves prices
+  cacheTag(BOOKING_CONFIG_TAG);
+  const config = await loadBookingConfig();
   const file = path.join(process.cwd(), "content/pages", locale, `${slug}.md`);
   const raw = await readFile(file, "utf8");
   const match = raw.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
@@ -36,7 +40,7 @@ export async function loadMarkdownPage(locale: Locale, slug: string): Promise<Ma
     guests: String(capacity.guests),
     checkIn: stayTimes.checkIn ?? "—",
     checkOut: stayTimes.checkOut ?? "—",
-    ...paymentVars(locale),
+    ...paymentVars(locale, config),
   };
   const body = match[2].replace(/\{\{(\w+)\}\}/g, (_, k: string) => vars[k] ?? `{{${k}}}`);
 
@@ -50,8 +54,8 @@ export async function loadMarkdownPage(locale: Locale, slug: string): Promise<Ma
 }
 
 /** Payment and cancellation facts for the terms, from the booking config (one source of truth). */
-function paymentVars(locale: Locale): Record<string, string> {
-  const { payment, cancellation } = bookingSeed;
+function paymentVars(locale: Locale, config: BookingConfig): Record<string, string> {
+  const { payment, cancellation } = config;
   const euro = (n: number) => new Intl.NumberFormat(locale === "el" ? "el-GR" : "en-IE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
   const tiers = [...cancellation].sort((a, b) => b.daysBefore - a.daysBefore);
   const list = tiers

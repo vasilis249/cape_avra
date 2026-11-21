@@ -82,6 +82,28 @@ part of it (damage) is done from the Stripe dashboard (Payments → the authoris
 admin panel (Phase 5). Cancellations refund the percentage of what was paid set in `cancellation`.
 Webhooks are the source of truth; if one is late, the confirmation page asks Stripe directly.
 
+### 2d. Admin panel (Phase 5)
+
+1. **SQL Editor** → run `supabase/migrations/0004_admin.sql` (notes, sign-in links, photo overrides).
+2. Vercel env: `ADMIN_EMAIL` = your email address (comma-separate to add someone else),
+   `ADMIN_SESSION_SECRET` = a long random string.
+3. Supabase → **Storage → New bucket** → name `site-media`, **Private** (the site serves the photos
+   itself, so the bucket never needs to be public).
+4. Open `https://<your-domain>/admin`, enter your email, click the link in the email (valid 15 minutes,
+   once), then **Sign in**. The session lasts 14 days on that device. Resend must be set up (section 3)
+   for the sign-in email to arrive.
+
+What you can do there: see upcoming stays, revenue and occupancy; view bookings, add notes, refund part
+of a payment, cancel with the policy refund / full / none / any amount, keep or release the security
+deposit, resend the confirmation; block and reopen dates (they also go out in the iCal export) and sync
+Airbnb/Booking.com now; edit seasons, prices, fees, payment and cancellation rules (new bookings only;
+the terms page follows); see early-booking requests and messages and download them as CSV; upload or
+replace photos for each section and add the interior photos after the renovation.
+
+Why not Supabase Auth: there is exactly one admin, so a signed cookie plus single-use email links does the
+job with no user table, no extra client library and nothing to configure in Supabase. All tables keep RLS
+on with no public policies; only the server reaches them.
+
 ## 3. Resend (emails: notification to you + auto-reply to the guest)
 
 1. Create an account at [resend.com](https://resend.com) → **Domains** → add `capeavra.com` and add the DNS records it shows.

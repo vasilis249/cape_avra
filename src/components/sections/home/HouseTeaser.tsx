@@ -5,6 +5,7 @@ import { Reveal } from "@/components/motion/Reveal";
 import { ArrowRight, ButtonLink } from "@/components/ui/Button";
 import { Container, Eyebrow, Hairline, Section } from "@/components/ui/Layout";
 import { capacity, spaces } from "@content/property";
+import { spacePhoto } from "@/lib/site-photos";
 
 export async function HouseTeaser() {
   const t = await getTranslations("home.house");
@@ -42,7 +43,7 @@ export async function HouseTeaser() {
         </Reveal>
 
         <ul className="grid grid-cols-2 gap-3 sm:gap-5 lg:col-span-6 lg:col-start-7">
-          {spaces.map((s, i) => (
+          {(await Promise.all(spaces.map(async (s) => ({ ...s, photo: await spacePhoto(s.key, s.photo) })))).map((s, i) => (
             <li key={s.key} className={i % 2 === 1 ? "translate-y-8 sm:translate-y-12" : undefined}>
               <Reveal delay={i * 100}>
                 {s.photo ? (

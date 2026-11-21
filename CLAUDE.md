@@ -17,9 +17,13 @@ before using an API from memory.
       iCal 2-way sync, cron jobs, booking emails
 - [x] **Phase 4**: payments behind `PaymentProvider` (simulated "test" + Stripe), Payment Element checkout,
       signed idempotent webhooks, saved card → automatic balance, security-deposit authorisations,
-      guest cancellation with tier refunds, manage-booking page ← *done, awaiting owner review*
-      (verified with the simulated provider; real Stripe test-mode run needs an `sk_test_` key)
-- [ ] Phase 5: admin panel
+      guest cancellation with tier refunds, manage-booking page
+      (verified with the simulated provider; real Stripe run: `src/lib/payments/stripe.e2e.test.ts`
+      with `STRIPE_E2E=1`, still pending a working `sk_test_` key)
+- [x] **Phase 5**: admin panel at `/admin` (Greek): email-link sign-in, dashboard (revenue, occupancy,
+      arrivals, attention), bookings (notes, refunds, owner cancel, security deposit, resend), calendar
+      (manual blocks, sync now), prices & seasons editor, leads + CSV, photo uploads per section
+      ← *done, awaiting owner review*
 - [ ] Phase 6: tests, security review, WCAG AA, Lighthouse, launch checklist
 
 Work in phases; stop at the end of each, summarise, give run/test steps, wait for the owner's "go".
@@ -64,6 +68,14 @@ src/components/booking/   BookingWidget (calendar), PriceSummary, CheckoutForm (
 src/app/[locale]/book/    page (calendar), checkout, confirmation (pending/failed/conflict states), manage
 src/app/api/              booking/calendar, ical/[token] (export), cron/sync-calendars, cron/daily,
                           webhooks/stripe
+src/app/admin/            own root layout (no public chrome); login/ (+ verify), (panel)/ pages,
+                          leads/export (CSV route)
+src/lib/admin/            auth (cookie session, ADMIN_EMAIL), actions ("use server", all mutations),
+                          stats (pure dashboard maths), photo-processing (sharp), months
+src/components/admin/     ui / ui-client (classes, Card, Stat…), ActionForm, PricingEditor, PhotoSlot…
+content/messages/admin.el.json  admin copy (Greek only: the admin is for the owner)
+src/lib/site-photos.ts    admin photo overrides ("use cache" + tag) on top of the registry
+src/app/media/[...path]   serves uploaded photos (Supabase Storage / .data/media)
 vercel.json               cron schedules
 src/i18n/                 routing (translated slugs), navigation, request config
 src/proxy.ts              next-intl locale negotiation (Next 16 Proxy)
@@ -121,6 +133,15 @@ src/lib/                  photos, seo (hreflang/OG), structured-data, cn
   pays from the manage page). Security deposit: manual-capture authorisation from check-in to check-out +
   `securityDepositReleaseDays`, re-placed when it lapses. Stripe.js loads only on payment forms
   (`@stripe/stripe-js/pure`). Live Stripe keys are refused outside the production deployment.
+- **Admin**: every page, server action and route handler calls `requireAdmin()`/`getAdmin()` itself
+  (layouts are not an auth boundary). Sign-in = single-use emailed link (only its SHA-256 stored; the
+  GET page only shows a button, so mail scanners can't use it) → HMAC-signed cookie (`ADMIN_SESSION_SECRET`,
+  path `/admin`, httpOnly, Lax, 14 days); removing an address from `ADMIN_EMAIL` revokes it. Session
+  reads sit behind `<Suspense>` and call `connection()`. Forms use `ActionForm` (dispatches by hand, so
+  fields survive an error). Money rules stay in `lib/payments/service.ts`. Pricing saves the whole
+  config (validated by the same zod schema) and `updateTag("booking-config")` (terms page); photo
+  uploads are resized in the browser (≤2400px, 4 MB server limit), re-encoded by sharp (metadata/GPS
+  stripped), content-hashed, and `updateTag("site-photos")`. Interior spaces use slot `space-<key>`.
 - **Tests**: `npm test` (pure logic). Store integration tests run with `TEST_DATABASE_URL` pointing at a
   disposable Postgres with the migrations applied.
 - Secrets only in `.env.local` (git-ignored); document every variable in `.env.example`.
@@ -135,7 +156,7 @@ both with Greek, self-hosted by next/font. Motif: fine-line flowering agave stal
 ## Open items from the owner (TODO(owner) in content files)
 
 Real prices & seasons (`content/booking.ts`, all example values) · climate-fee amounts ·
-cancellation tiers · deposit % · security deposit amount (€500 example) · Stripe account (test key, then live) · arrival details for the pre-arrival email (`property.arrivalInfo`) ·
+cancellation tiers · deposit % · security deposit amount (€500 example) · Stripe account (test key, then live) · `ADMIN_EMAIL` · arrival details for the pre-arrival email (`property.arrivalInfo`) ·
 Operator name / ΑΦΜ for privacy & imprint (`siteConfig.legal`) · legal texts reviewed by a lawyer ·
 bed configuration (`property.bedrooms`) · check-in/out times · favourite tavernas (`content/location.ts`) ·
 Confirm capacity 8/4/3 · driving times (estimates marked `confirmed: false`) · contact email/phone

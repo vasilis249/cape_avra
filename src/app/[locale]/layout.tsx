@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Commissioner, Noto_Serif_Display } from "next/font/google";
 import { locale as rootLocale } from "next/root-params";
 import { notFound } from "next/navigation";
 import { NextIntlClientProvider } from "next-intl";
@@ -11,23 +10,8 @@ import { isLocale, routing } from "@/i18n/routing";
 import { siteUrl } from "@/lib/seo";
 import { capacity } from "@content/property";
 import { isPreview, siteConfig } from "@content/site.config";
+import { display, sans } from "../fonts";
 import "../globals.css";
-
-// Self-hosted at build time by next/font: no requests to Google from visitors (GDPR).
-const display = Noto_Serif_Display({
-  subsets: ["latin", "greek"],
-  style: ["normal", "italic"],
-  variable: "--font-noto-serif-display",
-  // "optional": the headline (our LCP element) paints once and never re-paints on a late
-  // font swap. Fonts are preloaded, so on normal connections the serif arrives in time;
-  // on very slow first visits the metric-matched fallback is kept for that page view only.
-  display: "optional",
-});
-const sans = Commissioner({
-  subsets: ["latin", "greek"],
-  variable: "--font-commissioner",
-  display: "swap",
-});
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));

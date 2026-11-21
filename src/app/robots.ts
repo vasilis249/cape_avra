@@ -5,5 +5,5 @@ import { siteUrl } from "@/lib/seo";
 export default function robots(): MetadataRoute.Robots {
   const isProduction = process.env.VERCEL_ENV ? process.env.VERCEL_ENV === "production" : process.env.ALLOW_INDEXING === "true";
   if (!isProduction) return { rules: { userAgent: "*", disallow: "/" } };
-  return { rules: { userAgent: "*", allow: "/" }, sitemap: `${siteUrl}/sitemap.xml`, host: siteUrl };
+  return { rules: { userAgent: "*", allow: "/", disallow: ["/admin", "/api/"] }, sitemap: `${siteUrl}/sitemap.xml`, host: siteUrl };
 }

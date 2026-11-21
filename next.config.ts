@@ -19,11 +19,15 @@ const nextConfig: NextConfig = {
     qualities: [70, 80],
     deviceSizes: [480, 640, 828, 1080, 1280, 1600, 1920, 2400],
     imageSizes: [96, 160, 256, 384],
-    localPatterns: [{ pathname: "/photos/**" }, { pathname: "/brand/**" }, { pathname: "/video/**" }],
+    localPatterns: [{ pathname: "/photos/**" }, { pathname: "/brand/**" }, { pathname: "/video/**" }, { pathname: "/media/**" }],
     // generated masters are content-hashed, so they can be cached for a year
     minimumCacheTTL: 31536000,
   },
   poweredByHeader: false,
+  experimental: {
+    // admin photo uploads are resized in the browser first (≤ 2400 px JPEG); Vercel caps bodies at 4.5 MB
+    serverActions: { bodySizeLimit: "4mb" },
+  },
 };
 
 export default withNextIntl(nextConfig);

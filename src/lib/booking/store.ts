@@ -64,6 +64,21 @@ export type Payment = {
 };
 
 export type BlockedRange = { start: ISODate; end: ISODate; source: string };
+export type CalendarBlock = { id: string; source: string; uid: string; start: ISODate; end: ISODate; summary: string | null };
+export type ReservationNote = { id: string; reservationId: string; body: string; createdAt: string };
+export type SitePhoto = {
+  slot: string;
+  path: string;
+  width: number;
+  height: number;
+  blur: string;
+  color: string;
+  alt: { en: string; el: string };
+  focal: string | null;
+  updatedAt: string;
+};
+/** upcoming = not yet departed (includes guests in the house) */
+export type ReservationScope = "upcoming" | "past" | "cancelled" | "all";
 export type HoldInput = {
   ref: string;
   tokenHash: string;
@@ -96,7 +111,7 @@ export interface BookingStore {
   createPayment(p: Omit<Payment, "id" | "createdAt" | "updatedAt" | "refundedCents" | "failure"> & { failure?: string | null }): Promise<Payment>;
   getPayment(providerRef: string): Promise<Payment | null>;
   listPayments(reservationId: string): Promise<Payment[]>;
-  updatePayment(providerRef: string, patch: Partial<Pick<Payment, "status" | "refundedCents" | "failure">>): Promise<Payment | null>;
+  updatePayment(providerRef: string, patch: Partial<Pick<Payment, "status" | "refundedCents" | "failure" | "amountCents">>): Promise<Payment | null>;
   /** atomic status change: only applies (and returns the row) when the current status is in `from` */
   transitionPayment(providerRef: string, from: PaymentStatus[], patch: Partial<Pick<Payment, "status" | "failure">>): Promise<Payment | null>;
 
@@ -125,6 +140,25 @@ export interface BookingStore {
   /** unpaid (pending/failed) checkout payments of holds that have expired, to cancel at the provider */
   abandonedPayments(): Promise<Payment[]>;
   loadConfig(): Promise<unknown | null>;
+
+  /* ---- admin (Phase 5) ---- */
+  /** confirmed/cancelled stays for the admin list (`all` also shows holds); q matches ref, name or email */
+  listReservations(opts: { scope: ReservationScope; today: ISODate; q?: string }): Promise<Reservation[]>;
+  allPayments(): Promise<Payment[]>;
+  listBlocks(from: ISODate, to: ISODate): Promise<CalendarBlock[]>;
+  /** "booked" = the range covers a confirmed booking or an active hold */
+  addManualBlock(start: ISODate, end: ISODate, summary: string): Promise<CalendarBlock | "booked">;
+  removeManualBlock(id: string): Promise<boolean>;
+  /** null removes the stored copy (back to the seed in content/booking.ts) */
+  saveConfig(config: unknown | null): Promise<void>;
+  listNotes(reservationId: string): Promise<ReservationNote[]>;
+  addNote(reservationId: string, body: string): Promise<ReservationNote>;
+  saveLoginToken(tokenHash: string, email: string, expiresAt: string): Promise<void>;
+  /** marks the token used; returns its email if it was valid, unused and not expired */
+  consumeLoginToken(tokenHash: string): Promise<string | null>;
+  listSitePhotos(): Promise<SitePhoto[]>;
+  saveSitePhoto(p: Omit<SitePhoto, "updatedAt">): Promise<void>;
+  deleteSitePhoto(slot: string): Promise<SitePhoto | null>;
 }
 
 export class StoreUnavailableError extends Error {}
@@ -287,10 +321,11 @@ class PostgresStore implements BookingStore {
     const rows = await this.sql`select * from payments where reservation_id = ${reservationId} order by created_at`;
     return rows.map(payFromRow);
   }
-  async updatePayment(providerRef: string, patch: Partial<Pick<Payment, "status" | "refundedCents" | "failure">>) {
+  async updatePayment(providerRef: string, patch: Partial<Pick<Payment, "status" | "refundedCents" | "failure" | "amountCents">>) {
     const [row] = await this.sql`
       update payments set
         status = coalesce(${patch.status ?? null}, status),
+        amount_cents = coalesce(${patch.amountCents ?? null}, amount_cents),
         refunded_cents = coalesce(${patch.refundedCents ?? null}, refunded_cents),
         failure = case when ${patch.failure === undefined} then failure else ${patch.failure ?? null} end,
         updated_at = now()
@@ -396,15 +431,120 @@ class PostgresStore implements BookingStore {
     const [row] = await this.sql`select config from booking_config where id = 1`;
     return row?.config ?? null;
   }
+
+  async listReservations({ scope, today, q }: { scope: ReservationScope; today: ISODate; q?: string }) {
+    const like = q ? `%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%` : null;
+    const rows = await this.sql`
+      select * from reservations
+       where (${scope} = 'all'
+              or (${scope} = 'upcoming' and status = 'confirmed' and check_out > ${today})
+              or (${scope} = 'past' and status = 'confirmed' and check_out <= ${today})
+              or (${scope} = 'cancelled' and status = 'cancelled'))
+         and (${scope} <> 'all' or status in ('confirmed', 'cancelled', 'hold'))
+         and (${like}::text is null or ref ilike ${like} or guest->>'name' ilike ${like} or guest->>'email' ilike ${like})
+       order by
+         case when ${scope} = 'upcoming' then check_in end asc,
+         case when ${scope} = 'past' then check_in end desc,
+         case when ${scope} = 'cancelled' then cancelled_at end desc,
+         created_at desc
+       limit 500`;
+    return rows.map(resFromRow);
+  }
+
+  async allPayments() {
+    const rows = await this.sql`select * from payments order by created_at`;
+    return rows.map(payFromRow);
+  }
+
+  async listBlocks(from: ISODate, to: ISODate) {
+    const rows = await this.sql`
+      select * from calendar_blocks where end_date > ${from} and start_date < ${to} order by start_date`;
+    return rows.map((r) => ({ id: String(r.id), source: String(r.source), uid: String(r.uid), start: day(r.start_date), end: day(r.end_date), summary: (r.summary as string) ?? null }));
+  }
+
+  async addManualBlock(start: ISODate, end: ISODate, summary: string) {
+    try {
+      const [r] = await this.sql`select * from add_manual_block(${start}, ${end}, ${summary})`;
+      return { id: String(r.id), source: "manual", uid: String(r.uid), start: day(r.start_date), end: day(r.end_date), summary: (r.summary as string) ?? null };
+    } catch (e) {
+      if (e instanceof Error && e.message === "booked") return "booked" as const;
+      throw e;
+    }
+  }
+
+  async removeManualBlock(id: string) {
+    const rows = await this.sql`delete from calendar_blocks where id = ${id} and source = 'manual' returning id`;
+    return rows.length === 1;
+  }
+
+  async saveConfig(config: unknown | null) {
+    if (config === null) await this.sql`delete from booking_config where id = 1`;
+    else
+      await this.sql`
+        insert into booking_config (id, config) values (1, ${this.json(config)})
+        on conflict (id) do update set config = excluded.config, updated_at = now()`;
+  }
+
+  async listNotes(reservationId: string) {
+    const rows = await this.sql`select * from reservation_notes where reservation_id = ${reservationId} order by created_at`;
+    return rows.map((r) => ({ id: String(r.id), reservationId: String(r.reservation_id), body: String(r.body), createdAt: iso(r.created_at)! }));
+  }
+  async addNote(reservationId: string, body: string) {
+    const [r] = await this.sql`insert into reservation_notes (reservation_id, body) values (${reservationId}, ${body}) returning *`;
+    return { id: String(r.id), reservationId: String(r.reservation_id), body: String(r.body), createdAt: iso(r.created_at)! };
+  }
+
+  async saveLoginToken(tokenHash: string, email: string, expiresAt: string) {
+    await this.sql`delete from admin_login_tokens where expires_at < now() - interval '1 day'`;
+    await this.sql`insert into admin_login_tokens (token_hash, email, expires_at) values (${tokenHash}, ${email}, ${expiresAt})`;
+  }
+  async consumeLoginToken(tokenHash: string) {
+    const [r] = await this.sql`
+      update admin_login_tokens set used_at = now()
+       where token_hash = ${tokenHash} and used_at is null and expires_at > now()
+       returning email`;
+    return r ? String(r.email) : null;
+  }
+
+  async listSitePhotos() {
+    const rows = await this.sql`select * from site_photos`;
+    return rows.map((r) => ({
+      slot: String(r.slot),
+      path: String(r.path),
+      width: Number(r.width),
+      height: Number(r.height),
+      blur: String(r.blur),
+      color: String(r.color),
+      alt: r.alt as { en: string; el: string },
+      focal: (r.focal as string) ?? null,
+      updatedAt: iso(r.updated_at)!,
+    }));
+  }
+  async saveSitePhoto(p: Omit<SitePhoto, "updatedAt">) {
+    await this.sql`
+      insert into site_photos (slot, path, width, height, blur, color, alt, focal)
+      values (${p.slot}, ${p.path}, ${p.width}, ${p.height}, ${p.blur}, ${p.color}, ${this.json(p.alt)}, ${p.focal})
+      on conflict (slot) do update set path = excluded.path, width = excluded.width, height = excluded.height,
+        blur = excluded.blur, color = excluded.color, alt = excluded.alt, focal = excluded.focal, updated_at = now()`;
+  }
+  async deleteSitePhoto(slot: string) {
+    const [r] = await this.sql`delete from site_photos where slot = ${slot} returning *`;
+    if (!r) return null;
+    return { slot: String(r.slot), path: String(r.path), width: Number(r.width), height: Number(r.height), blur: String(r.blur), color: String(r.color), alt: r.alt as { en: string; el: string }, focal: (r.focal as string) ?? null, updatedAt: iso(r.updated_at)! };
+  }
 }
 
 /* ------------------------------------------------------ local file (dev only) */
 
 type FileDb = {
   reservations: Reservation[];
-  blocks: (BlockedRange & { uid: string; summary: string })[];
+  blocks: (BlockedRange & { uid: string; summary: string; id?: string })[];
   payments: Payment[];
   events: { id: string; provider: string; type: string; processedAt: string | null }[];
+  notes: ReservationNote[];
+  loginTokens: { tokenHash: string; email: string; expiresAt: string; usedAt: string | null }[];
+  sitePhotos: SitePhoto[];
+  config: unknown | null;
 };
 
 let lock: Promise<unknown> = Promise.resolve();
@@ -415,7 +555,7 @@ export class FileStore implements BookingStore {
 
   private async tx<T>(fn: (db: FileDb) => T | Promise<T>, write = false): Promise<T> {
     const run = lock.then(async () => {
-      let db: FileDb = { reservations: [], blocks: [], payments: [], events: [] };
+      let db: FileDb = { reservations: [], blocks: [], payments: [], events: [], notes: [], loginTokens: [], sitePhotos: [], config: null };
       try {
         db = { ...db, ...JSON.parse(await readFile(this.file, "utf8")) };
       } catch {}
@@ -565,7 +705,7 @@ export class FileStore implements BookingStore {
   listPayments(reservationId: string) {
     return this.tx((db) => db.payments.filter((p) => p.reservationId === reservationId));
   }
-  updatePayment(providerRef: string, patch: Partial<Pick<Payment, "status" | "refundedCents" | "failure">>) {
+  updatePayment(providerRef: string, patch: Partial<Pick<Payment, "status" | "refundedCents" | "failure" | "amountCents">>) {
     return this.tx((db) => {
       const p = db.payments.find((x) => x.providerRef === providerRef);
       if (!p) return null;
@@ -684,8 +824,106 @@ export class FileStore implements BookingStore {
       }),
     );
   }
-  async loadConfig() {
-    return null;
+  loadConfig() {
+    return this.tx((db) => db.config ?? null);
+  }
+
+  listReservations({ scope, today, q }: { scope: ReservationScope; today: ISODate; q?: string }) {
+    const needle = q?.toLowerCase();
+    return this.tx((db) => {
+      const list = db.reservations.filter((r) => {
+        const inScope =
+          scope === "all"
+            ? ["confirmed", "cancelled", "hold"].includes(r.status)
+            : scope === "upcoming"
+              ? r.status === "confirmed" && r.checkOut > today
+              : scope === "past"
+                ? r.status === "confirmed" && r.checkOut <= today
+                : r.status === "cancelled";
+        const match = !needle || [r.ref, r.guest?.name, r.guest?.email].some((v) => v?.toLowerCase().includes(needle));
+        return inScope && match;
+      });
+      const by = (f: (r: Reservation) => string, dir = 1) => (a: Reservation, b: Reservation) => (f(a) < f(b) ? -dir : f(a) > f(b) ? dir : 0);
+      if (scope === "upcoming") list.sort(by((r) => r.checkIn));
+      else if (scope === "past") list.sort(by((r) => r.checkIn, -1));
+      else if (scope === "cancelled") list.sort(by((r) => r.cancelledAt ?? "", -1));
+      else list.sort(by((r) => r.createdAt, -1));
+      return list.slice(0, 500);
+    });
+  }
+  allPayments() {
+    return this.tx((db) => db.payments);
+  }
+  private blockId = (b: FileDb["blocks"][number]) => b.id ?? `${b.source}:${b.uid}`;
+  listBlocks(from: ISODate, to: ISODate) {
+    return this.tx((db) =>
+      db.blocks
+        .filter((b) => b.end > from && b.start < to)
+        .sort((a, b) => (a.start < b.start ? -1 : 1))
+        .map((b) => ({ id: this.blockId(b), source: b.source, uid: b.uid, start: b.start, end: b.end, summary: b.summary || null })),
+    );
+  }
+  addManualBlock(start: ISODate, end: ISODate, summary: string) {
+    return this.tx((db) => {
+      if (end <= start) throw new Error("invalid range");
+      const want = { start, end };
+      if (db.reservations.some((r) => this.active(r) && this.overlaps(this.range(r), want))) return "booked" as const;
+      const b = { id: crypto.randomUUID(), source: "manual", uid: crypto.randomUUID(), start, end, summary };
+      db.blocks.push(b);
+      return { id: b.id, source: "manual", uid: b.uid, start, end, summary: summary || null };
+    }, true);
+  }
+  removeManualBlock(id: string) {
+    return this.tx((db) => {
+      const before = db.blocks.length;
+      db.blocks = db.blocks.filter((b) => !(b.source === "manual" && this.blockId(b) === id));
+      return db.blocks.length < before;
+    }, true);
+  }
+  saveConfig(config: unknown | null) {
+    return this.tx((db) => {
+      db.config = config;
+    }, true);
+  }
+  listNotes(reservationId: string) {
+    return this.tx((db) => db.notes.filter((n) => n.reservationId === reservationId));
+  }
+  addNote(reservationId: string, body: string) {
+    return this.tx((db) => {
+      const n = { id: crypto.randomUUID(), reservationId, body, createdAt: this.now() };
+      db.notes.push(n);
+      return n;
+    }, true);
+  }
+  saveLoginToken(tokenHash: string, email: string, expiresAt: string) {
+    return this.tx((db) => {
+      db.loginTokens = db.loginTokens.filter((t) => t.expiresAt > new Date(Date.now() - 86_400_000).toISOString());
+      db.loginTokens.push({ tokenHash, email, expiresAt, usedAt: null });
+    }, true);
+  }
+  consumeLoginToken(tokenHash: string) {
+    return this.tx((db) => {
+      const t = db.loginTokens.find((x) => x.tokenHash === tokenHash);
+      if (!t || t.usedAt || t.expiresAt <= this.now()) return null;
+      t.usedAt = this.now();
+      return t.email;
+    }, true);
+  }
+  listSitePhotos() {
+    return this.tx((db) => db.sitePhotos);
+  }
+  saveSitePhoto(p: Omit<SitePhoto, "updatedAt">) {
+    return this.tx((db) => {
+      db.sitePhotos = db.sitePhotos.filter((x) => x.slot !== p.slot);
+      db.sitePhotos.push({ ...p, updatedAt: this.now() });
+    }, true);
+  }
+  deleteSitePhoto(slot: string) {
+    return this.tx((db) => {
+      const found = db.sitePhotos.find((x) => x.slot === slot) ?? null;
+      db.sitePhotos = db.sitePhotos.filter((x) => x.slot !== slot);
+      return found;
+    }, true);
   }
 }
 
