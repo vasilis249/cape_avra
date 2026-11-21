@@ -266,3 +266,18 @@ describe("iCal download cap", async () => {
     await expect(readCapped(new Response("x", { headers: { "content-length": "99999999" } }), 1024)).rejects.toThrow("too large");
   });
 });
+
+describe("agreed price (owner bookings)", async () => {
+  const { withCustomTotal, paymentPlan } = await import("./pricing");
+  const c = cfg({ seasons: [{ id: "s", name: { en: "S", el: "Σ" }, from: "01-01", to: "12-31", nightly: 100, minNights: 1 }] });
+  it("keeps the breakdown, records the difference and re-splits the payment", () => {
+    const q = quoteStay(c, { checkIn: "2027-07-01", checkOut: "2027-07-08", guests: 2 }, "2027-01-15"); // 700 + 150 cleaning
+    const agreed = withCustomTotal(c, q, 80000, "2027-01-15");
+    expect(agreed).toMatchObject({ totalCents: 80000, adjustmentCents: -5000, accommodationCents: q.accommodationCents });
+    expect(agreed.payment).toEqual(paymentPlan(c, "2027-07-01", 80000, "2027-01-15"));
+    expect(agreed.payment.depositCents + agreed.payment.balanceCents).toBe(80000);
+    // applying it twice measures against the calculated price, not the previous agreement
+    expect(withCustomTotal(c, agreed, 90000).adjustmentCents).toBe(5000);
+    expect(withCustomTotal(c, q, q.totalCents).adjustmentCents).toBeUndefined();
+  });
+});

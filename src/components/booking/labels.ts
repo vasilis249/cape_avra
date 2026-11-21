@@ -19,6 +19,7 @@ export async function bookingLabels() {
     full: raw("summary.full"),
     balance: raw("summary.balance"),
     onArrival: raw("summary.onArrival"),
+    adjustment: raw("summary.adjustment"),
   };
   return {
     summary,

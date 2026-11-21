@@ -93,7 +93,10 @@ Webhooks are the source of truth; if one is late, the confirmation page asks Str
    once), then **Sign in**. The session lasts 14 days on that device. Resend must be set up (section 3)
    for the sign-in email to arrive.
 
-What you can do there: see upcoming stays, revenue and occupancy; view bookings, add notes, refund part
+What you can do there: create bookings yourself (phone, email or an early-booking request: **Αιτήματα →
+Κράτηση**), with an agreed price; the dates are held for the guest for 1–7 days and they get an email with
+a link to pay online, or you record a bank transfer / cash payment, which confirms the booking. See upcoming
+stays, revenue and occupancy; view bookings, add notes, refund part
 of a payment, cancel with the policy refund / full / none / any amount, keep or release the security
 deposit, resend the confirmation; block and reopen dates (they also go out in the iCal export) and sync
 Airbnb/Booking.com now; edit seasons, prices, fees, payment and cancellation rules (new bookings only;

@@ -14,6 +14,8 @@ export type PriceSummaryLabels = {
   full: string;
   balance: string; // "{date}"
   onArrival: string;
+  /** owner-agreed price difference */
+  adjustment?: string;
 };
 
 const fill = (s: string, v: Record<string, string | number>) => s.replace(/\{(\w+)\}/g, (_, k) => String(v[k] ?? ""));
@@ -78,6 +80,14 @@ export function PriceSummary({
               <dd className="tabular-nums">{money(l.cents)}</dd>
             </div>
           ))}
+        {!!quote.adjustmentCents && (
+          <div className={row}>
+            <dt className="text-ink-soft">{labels.adjustment}</dt>
+            <dd className={cn("tabular-nums", quote.adjustmentCents < 0 && "text-olive")}>
+              {quote.adjustmentCents < 0 ? `−${money(-quote.adjustmentCents)}` : money(quote.adjustmentCents)}
+            </dd>
+          </div>
+        )}
         <div className={cn(row, "pt-4")}>
           <dt className="font-display text-xl text-ink">{labels.total}</dt>
           <dd className="font-display text-xl tabular-nums text-ink">{money(quote.totalCents)}</dd>

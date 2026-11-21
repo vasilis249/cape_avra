@@ -45,6 +45,7 @@ suite("Stripe test mode (network)", { timeout: 60_000 }, () => {
     cancelled: async (r, c) => void sent.push(`cancelled:${r.ref}:${c}`),
     conflictRefunded: async (r, c) => void sent.push(`conflict:${r.ref}:${c}`),
     securityHoldFailed: async (r, reason) => void sent.push(`securityFailed:${r.ref}:${reason}`),
+    paymentRequest: async (r) => void sent.push(`paymentRequest:${r.ref}`),
   };
   let n = 0;
   const stamp = Date.now().toString(36).toUpperCase().slice(-4);

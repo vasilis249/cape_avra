@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Card, fill, money, PageTitle, shortDate, Stat } from "@/components/admin/ui";
+import { Card, dateTime, fill, money, PageTitle, shortDate, Stat } from "@/components/admin/ui";
 import { requireAdmin } from "@/lib/admin/auth";
 import { dashboard, type Occupancy } from "@/lib/admin/stats";
 import { loadBookingConfig } from "@/lib/booking/config";
@@ -29,7 +29,10 @@ export default async function DashboardPage() {
   const newLeads = leads?.filter((l) => l.created_at.slice(0, 10) >= weekAgo).length ?? 0;
   const occ = (o: Occupancy) => fill(D.occupancyNote, { direct: o.directPercent });
 
+  const now = new Date().toISOString();
+  const awaiting = reservations.filter((r) => r.status === "hold" && !!r.guest && !!r.expiresAt && r.expiresAt > now);
   const attention: { label: string; items: { r: Reservation; extra?: string }[] }[] = [
+    { label: D.awaitingPayment, items: awaiting.map((r) => ({ r, extra: `≤ ${dateTime(r.expiresAt!)}` })) },
     { label: D.balanceFailed, items: d.balanceFailed.map((r) => ({ r })) },
     { label: D.securityFailed, items: d.securityFailed.map((r) => ({ r })) },
     { label: D.securityHeld, items: d.securityHeld.map(({ r, p }) => ({ r, extra: money(p.amountCents) })) },

@@ -14,12 +14,14 @@ export type Notifier = {
   confirmed(r: Reservation, payments: Payment[]): Promise<void>;
   balancePaid(r: Reservation, payments: Payment[]): Promise<void>;
   /** automatic balance charge failed: guest gets a link to pay, owner is told */
-  balanceFailed(r: Reservation, reason: string): Promise<void>;
+  balanceFailed(r: Reservation, reason: string, amountCents?: number): Promise<void>;
   cancelled(r: Reservation, refundCents: number, payments: Payment[]): Promise<void>;
   /** paid after the hold expired and someone else took the dates: refunded in full */
   conflictRefunded(r: Reservation, refundCents: number): Promise<void>;
   /** owner only */
   securityHoldFailed(r: Reservation, reason: string): Promise<void>;
+  /** owner booking: the guest's link to pay and confirm */
+  paymentRequest(r: Reservation, url: string): Promise<void>;
 };
 
 export type Deps = { store: BookingStore; provider: PaymentProvider; config: BookingConfig; notify: Notifier };
@@ -190,14 +192,14 @@ export async function syncPayment(deps: Deps, p: ProviderPayment): Promise<void>
 }
 
 async function confirmAfterPayment(deps: Deps, reservationId: string, paymentRef: string) {
-  const { store, provider, notify } = deps;
+  const { store, notify } = deps;
   const confirmed = await store.confirmPaid(reservationId);
   if (!confirmed) {
     // the hold expired and the dates were taken (or blocked) meanwhile: give the money back
     const payment = (await store.getPayment(paymentRef))!;
     const due = payment.amountCents - payment.refundedCents;
     if (due > 0) {
-      const { refundedCents } = await provider.refund(paymentRef, due, `conflict-${paymentRef}`);
+      const { refundedCents } = await refundVia(deps, payment, due, `conflict-${paymentRef}`);
       await store.updatePayment(paymentRef, { refundedCents });
     }
     const r = await store.cancel(reservationId, { by: "system", at: new Date().toISOString(), refundPercent: 100, refundCents: due, reason: "dates-taken" });
@@ -262,7 +264,7 @@ export async function cancelReservation(
     if (!STAY_KINDS.includes(p.kind) || p.status !== "succeeded") continue;
     const amount = Math.min(left, p.amountCents - p.refundedCents);
     if (amount <= 0) continue;
-    const { refundedCents } = await provider.refund(p.providerRef, amount, `cancel-${r.id}-${p.providerRef}`);
+    const { refundedCents } = await refundVia(deps, p, amount, `cancel-${r.id}-${p.providerRef}`);
     await store.updatePayment(p.providerRef, { refundedCents });
     left -= amount;
   }
@@ -285,6 +287,56 @@ export async function cancelReservation(
 
 /* ------------------------------------------------------------ owner tools */
 
+/** Payments taken outside the site (bank transfer, cash) are refunded by the owner the same way: we only record it. */
+export const MANUAL_PROVIDER = "manual";
+async function refundVia(deps: Deps, p: Payment, amountCents: number, idempotencyKey: string): Promise<{ refundedCents: number }> {
+  if (p.provider === MANUAL_PROVIDER) return { refundedCents: Math.min(p.amountCents, p.refundedCents + amountCents) };
+  return deps.provider.refund(p.providerRef, amountCents, idempotencyKey);
+}
+
+/**
+ * Record a payment received outside the site. The first one confirms a booking that is awaiting payment
+ * (if its dates are still free); later ones count towards the balance.
+ */
+export async function recordManualPayment(deps: Deps, r: Reservation, input: { amountCents: number; method: "transfer" | "cash" | "other" }) {
+  const { store, notify } = deps;
+  const amount = Math.round(input.amountCents);
+  if (!Number.isFinite(amount) || amount <= 0) return { ok: false as const, code: "amount" as const };
+  if (r.status !== "hold" && r.status !== "expired" && r.status !== "confirmed") return { ok: false as const, code: "notPayable" as const };
+  const payments = await store.listPayments(r.id);
+  if (amount > outstandingCents(r, payments)) return { ok: false as const, code: "amount" as const };
+
+  const first = r.status !== "confirmed";
+  if (first) {
+    const confirmed = await store.confirmPaid(r.id);
+    if (!confirmed) return { ok: false as const, code: "unavailable" as const };
+  }
+  const kind: PaymentKind = first ? (amount >= r.totalCents ? "full" : "deposit") : "balance";
+  await store.createPayment({
+    reservationId: r.id,
+    kind,
+    provider: MANUAL_PROVIDER,
+    providerRef: `manual-${input.method}-${crypto.randomUUID()}`,
+    amountCents: amount,
+    currency: r.currency,
+    status: "succeeded",
+  });
+  // the guest paid another way: no automatic card charge for the balance unless they pay online later
+  const after = (await store.getById(r.id))!;
+  const all = await store.listPayments(r.id);
+  if (first) {
+    if (await store.claimEmail(after.id, "confirmation")) {
+      await notify.confirmed(after, all).catch(async (e) => {
+        console.error(`[payments] confirmation emails ${r.ref}`, e);
+        await store.releaseEmail(after.id, "confirmation");
+      });
+    }
+  } else {
+    await notify.balancePaid(after, all).catch((e) => console.error(`[payments] balance email ${r.ref}`, e));
+  }
+  return { ok: true as const, reservation: after };
+}
+
 /** Partial refund without cancelling (goodwill, a broken appliance…). */
 export async function refundPayment(deps: Deps, r: Reservation, paymentRef: string, cents: number) {
   const p = await deps.store.getPayment(paymentRef);
@@ -292,7 +344,7 @@ export async function refundPayment(deps: Deps, r: Reservation, paymentRef: stri
   const amount = Math.round(cents);
   if (amount <= 0 || amount > p.amountCents - p.refundedCents) return { ok: false as const, code: "tooMuch" as const };
   // key includes the state, so a double submit is deduplicated but a later second refund is not
-  const { refundedCents } = await deps.provider.refund(paymentRef, amount, `manual-${paymentRef}-${p.refundedCents}-${amount}`);
+  const { refundedCents } = await refundVia(deps, p, amount, `manual-${paymentRef}-${p.refundedCents}-${amount}`);
   await deps.store.updatePayment(paymentRef, { refundedCents });
   return { ok: true as const, refundedCents };
 }
@@ -328,7 +380,7 @@ export async function chargeBalances(deps: Deps, today: ISODate) {
     if (amountCents <= 0) continue;
     if (!r.providerCustomerId || !r.paymentMethodId) {
       await store.createPayment({ reservationId: r.id, kind: "balance", provider: provider.id, providerRef: `nocard-${r.id}`, amountCents, currency: r.currency, status: "failed", failure: "no_saved_card" }).catch(() => {});
-      await deps.notify.balanceFailed(r, "no_saved_card").catch((e) => console.error(`[payments] balance-failed email ${r.ref}`, e));
+      await deps.notify.balanceFailed(r, "no_saved_card", amountCents).catch((e) => console.error(`[payments] balance-failed email ${r.ref}`, e));
       out.failed++;
       continue;
     }

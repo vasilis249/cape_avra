@@ -11,7 +11,7 @@ import A from "@content/messages/admin.el.json";
 
 export const metadata: Metadata = { title: A.bookings.title };
 const B = A.bookings;
-const SCOPES: ReservationScope[] = ["upcoming", "past", "cancelled", "all"];
+const SCOPES: ReservationScope[] = ["upcoming", "pending", "past", "cancelled", "all"];
 
 export default async function BookingsPage({ searchParams }: PageProps<"/admin/bookings">) {
   await requireAdmin();
@@ -24,7 +24,15 @@ export default async function BookingsPage({ searchParams }: PageProps<"/admin/b
 
   return (
     <>
-      <PageTitle>{B.title}</PageTitle>
+      <PageTitle
+        actions={
+          <Link href="/admin/bookings/new" className={button}>
+            {B.new}
+          </Link>
+        }
+      >
+        {B.title}
+      </PageTitle>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <nav aria-label={B.title} className="flex flex-wrap gap-1">
           {SCOPES.map((s) => (

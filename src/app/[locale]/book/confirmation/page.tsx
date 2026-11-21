@@ -13,7 +13,7 @@ import { getBookingStore, type Payment } from "@/lib/booking/store";
 import { paymentDeps } from "@/lib/payments/deps";
 import { reconcileReservation } from "@/lib/payments/service";
 import { AutoRefresh } from "@/components/booking/AutoRefresh";
-import { tokenMatches } from "@/lib/booking/tokens";
+import { canAccess } from "@/lib/booking/tokens";
 import { currentLocale } from "@/lib/page-meta";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -43,7 +43,7 @@ async function Confirmation({ searchParams }: Pick<PageProps<"/[locale]/book/con
   const tc = await getTranslations("booking.checkout");
   const te = await getTranslations("emails.confirmation");
   let r = ref && token ? await getBookingStore().getByRef(ref) : null;
-  if (r && !tokenMatches(token, r.tokenHash)) r = null;
+  if (r && !canAccess(ref, token, r.tokenHash)) r = null;
 
   // webhook not here yet (or not configured): ask the provider directly
   let payments: Payment[] = [];

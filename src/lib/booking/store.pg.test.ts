@@ -174,4 +174,14 @@ suite("PostgresStore (integration)", () => {
     expect(await store.getById(old!.id)).toBeNull();
     expect(await store.getById(paid!.id)).not.toBeNull();
   });
+
+  it("owner holds: listed as pending, extendable while active", async () => {
+    const r = await hold("CA-OWNR-01", "2028-06-01", "2028-06-05", 60 * 48);
+    expect((await store.listReservations({ scope: "pending", today: "2026-11-21" })).map((x) => x.ref)).toContain("CA-OWNR-01");
+    const until = new Date(Date.now() + 72 * 3_600_000).toISOString();
+    expect((await store.extendHold(r!.id, until))?.expiresAt).toBe(until);
+    await store.releaseHold(r!.id);
+    expect(await store.extendHold(r!.id, until)).toBeNull();
+    expect((await store.listReservations({ scope: "pending", today: "2026-11-21" })).map((x) => x.ref)).not.toContain("CA-OWNR-01");
+  });
 });

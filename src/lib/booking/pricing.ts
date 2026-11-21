@@ -27,6 +27,8 @@ export type Quote = {
   totalCents: number;
   /** charged on arrival (line items with includedInTotal: false) */
   payOnArrivalCents: number;
+  /** owner-agreed price: difference between the calculated and the agreed total (negative = discount) */
+  adjustmentCents?: number;
   /** what is charged now and later. Late bookings (inside the balance window) pay in full. */
   payment: { depositCents: number; balanceCents: number; mode: "full" | "deposit"; balanceDueDate: ISODate | null };
 };
@@ -78,10 +80,6 @@ export function quoteStay(
   const totalCents = subtotalCents + lineItems.filter((l) => l.includedInTotal).reduce((s, l) => s + l.cents, 0);
   const payOnArrivalCents = lineItems.filter((l) => !l.includedInTotal).reduce((s, l) => s + l.cents, 0);
 
-  const balanceDueDate = addDays(input.checkIn, -config.payment.balanceDaysBeforeArrival);
-  const late = today !== undefined && diffDays(today, balanceDueDate) <= 0;
-  const mode = config.payment.mode === "full" || late ? "full" : "deposit";
-  const depositCents = mode === "full" ? totalCents : Math.round((totalCents * config.payment.depositPercent) / 100);
 
   return {
     currency: config.currency,
@@ -97,7 +95,28 @@ export function quoteStay(
     lineItems,
     totalCents,
     payOnArrivalCents,
-    payment: { mode, depositCents, balanceCents: totalCents - depositCents, balanceDueDate: mode === "full" ? null : balanceDueDate },
+    payment: paymentPlan(config, input.checkIn, totalCents, today),
+  };
+}
+
+/** Deposit now + balance later, or everything now when the balance would already be due. */
+export function paymentPlan(config: BookingConfig, checkIn: ISODate, totalCents: number, today?: ISODate): Quote["payment"] {
+  const balanceDueDate = addDays(checkIn, -config.payment.balanceDaysBeforeArrival);
+  const late = today !== undefined && diffDays(today, balanceDueDate) <= 0;
+  const mode = config.payment.mode === "full" || late ? "full" : "deposit";
+  const depositCents = mode === "full" ? totalCents : Math.round((totalCents * config.payment.depositPercent) / 100);
+  return { mode, depositCents, balanceCents: totalCents - depositCents, balanceDueDate: mode === "full" ? null : balanceDueDate };
+}
+
+/** A price agreed with the guest (owner bookings): keeps the breakdown, records the difference. */
+export function withCustomTotal(config: BookingConfig, quote: Quote, totalCents: number, today?: ISODate): Quote {
+  const total = Math.max(0, Math.round(totalCents));
+  const calculated = quote.totalCents - (quote.adjustmentCents ?? 0);
+  return {
+    ...quote,
+    adjustmentCents: total - calculated || undefined,
+    totalCents: total,
+    payment: paymentPlan(config, quote.checkIn, total, today),
   };
 }
 

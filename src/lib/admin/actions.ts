@@ -14,9 +14,13 @@ import { getBookingStore } from "@/lib/booking/store";
 import { hashToken } from "@/lib/booking/tokens";
 import { emailLayout, sendEmail } from "@/lib/email";
 import { deleteMedia, MediaUnavailableError, putMedia } from "@/lib/media-storage";
-import { paymentDeps } from "@/lib/payments/deps";
+import { createOwnerBooking } from "@/lib/booking/service";
+import { paymentUrl } from "@/lib/booking/emails";
+import { ownerDeps, paymentDeps } from "@/lib/payments/deps";
 import {
   cancelReservation,
+  outstandingCents,
+  recordManualPayment,
   keepSecurityDeposit,
   refundPayment,
   releaseSecurityDeposit,
@@ -286,4 +290,123 @@ export async function restorePhoto(form: FormData) {
   if (removed) await deleteMedia(removed.path).catch(() => {});
   updateTag(SITE_PHOTOS_TAG);
   refresh();
+}
+
+/* --------------------------------------------------------- owner bookings */
+
+const ownerBookingSchema = z.object({
+  checkIn: z.string(),
+  checkOut: z.string(),
+  guests: z.coerce.number().int(),
+  locale: z.enum(["en", "el"]),
+  name: z.string().trim().min(2).max(120),
+  email: z.string().trim().email().max(200),
+  phone: z.string().trim().max(40).optional(),
+  country: z.string().trim().max(80).optional(),
+  message: z.string().trim().max(2000).optional(),
+  notes: z.string().trim().max(2000).optional(),
+  customTotal: z.string().trim().optional(),
+  holdHours: z.coerce.number().int().min(1).max(336),
+  sendLink: z.literal("on").optional(),
+});
+
+export async function adminCreateBooking(_: ActionState, form: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const N = A.newBooking.problems;
+  const parsed = ownerBookingSchema.safeParse(Object.fromEntries(form));
+  if (!parsed.success) {
+    const field = String(parsed.error.issues[0]?.path[0] ?? "");
+    return { error: ["name", "email"].includes(field) ? N.guest : field === "guests" ? fill(N.guests, { max: 20 }) : N.invalid };
+  }
+  const v = parsed.data;
+  if (!isISODate(v.checkIn) || !isISODate(v.checkOut) || v.checkOut <= v.checkIn) return { error: N.invalid };
+  let customTotalCents: number | undefined;
+  if (v.customTotal) {
+    customTotalCents = euros(v.customTotal);
+    if (!Number.isFinite(customTotalCents) || customTotalCents <= 0) return { error: N.price };
+  }
+  const deps = await ownerDeps();
+  const today = todayIn(deps.config.timeZone);
+  const res = await createOwnerBooking(
+    deps.store,
+    deps.config,
+    {
+      checkIn: v.checkIn,
+      checkOut: v.checkOut,
+      guests: v.guests,
+      locale: v.locale,
+      guest: { name: v.name, email: v.email, phone: v.phone || undefined, country: v.country || undefined, message: v.message || undefined },
+      holdHours: v.holdHours,
+      customTotalCents,
+    },
+    today,
+  );
+  if (!res.ok) {
+    const p = res.problem;
+    if (p.code === "guests") return { error: fill(N.guests, { max: p.max }) };
+    if (p.code === "closed") return { error: fill(N.closed, { date: shortDateEl(p.date) }) };
+    if (p.code === "unavailable") return { error: fill(N.unavailable, { date: shortDateEl(p.date) }) };
+    return { error: N.invalid };
+  }
+  const r = res.reservation;
+  if (v.notes) await deps.store.addNote(r.id, v.notes);
+  if (v.sendLink === "on") {
+    const url = paymentUrl(r);
+    if (url) await deps.notify.paymentRequest(r, url).catch((e) => console.error(`[admin] payment link ${r.ref}`, e));
+  }
+  redirect(`/admin/bookings/${r.id}`);
+}
+
+export async function adminSendPaymentLink(_: ActionState, form: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const r = await reservationFrom(form);
+  const url = r && paymentUrl(r);
+  if (!r || r.status !== "hold" || !url) return { error: A.common.error };
+  try {
+    await (await ownerDeps()).notify.paymentRequest(r, url);
+  } catch (e) {
+    console.error(`[admin] payment link ${r.ref}`, e);
+    return { error: A.common.error };
+  }
+  return { ok: true, message: A.booking.linkSent };
+}
+
+export async function adminExtendHold(_: ActionState, form: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const r = await reservationFrom(form);
+  const hours = Number(form.get("hours"));
+  if (!r || !Number.isInteger(hours) || hours < 1 || hours > 336) return { error: A.common.error };
+  const base = Math.max(Date.now(), new Date(r.expiresAt ?? 0).getTime());
+  const done = await getBookingStore().extendHold(r.id, new Date(base + hours * 3_600_000).toISOString());
+  if (!done) return { error: A.booking.expiredLead };
+  refresh();
+  return { ok: true, message: A.booking.extended };
+}
+
+export async function adminReleaseHold(form: FormData) {
+  await requireAdmin();
+  const r = await reservationFrom(form);
+  if (r?.status === "hold") await getBookingStore().releaseHold(r.id);
+  refresh();
+}
+
+export async function adminManualPayment(_: ActionState, form: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const r = await reservationFrom(form);
+  if (!r) return { error: A.booking.notFound };
+  const method = String(form.get("method"));
+  if (method !== "transfer" && method !== "cash" && method !== "other") return { error: A.common.error };
+  const deps = await ownerDeps();
+  const max = outstandingCents(r, await deps.store.listPayments(r.id));
+  const res = await recordManualPayment(deps, r, { amountCents: euros(form.get("amount")), method });
+  if (!res.ok) {
+    if (res.code === "unavailable") return { error: A.booking.manualUnavailable };
+    return { error: fill(A.booking.manualAmountError, { max: (max / 100).toLocaleString("el-GR", { style: "currency", currency: "EUR" }) }) };
+  }
+  refresh();
+  return { ok: true, message: A.booking.manualDone };
+}
+
+function shortDateEl(d: string) {
+  return new Date(`${d}T12:00:00Z`).toLocaleDateString("el-GR", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }

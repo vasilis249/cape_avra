@@ -223,3 +223,86 @@ describe("security invariants", () => {
     }
   });
 });
+
+describe("owner bookings and offline payments", async () => {
+  const { createOwnerBooking } = await import("@/lib/booking/service");
+  const { recordManualPayment } = await import("@/lib/payments/service");
+  const { manageToken, canAccess } = await import("@/lib/booking/tokens");
+  let store: BookingStore;
+  let deps: Deps;
+  const sent: string[] = [];
+  const guest = { name: "Νίκος", email: "nikos@example.com", phone: "+30 690 000 0000" };
+  // a provider that must never be called for offline payments
+  const offline = new Proxy({ id: "none" }, { get: (t, k) => (k === "id" ? "none" : () => Promise.reject(new Error(`provider.${String(k)} called`))) }) as unknown as Deps["provider"];
+  beforeEach(async () => {
+    store = new FileStore(path.join(await mkdtemp(path.join(tmpdir(), "cape-owner-")), "booking.json"));
+    const notify = new Proxy({}, { get: (_, k) => async (r: Reservation) => void sent.push(`${String(k)}:${r.ref}`) }) as Deps["notify"];
+    deps = { store, provider: offline, config, notify };
+  });
+
+  it("holds dates for days with the guest filled in, overriding booking rules but never availability", async () => {
+    // 2 nights in high season (min 7, Saturday arrivals) would be refused online; the owner may book it
+    const res = await createOwnerBooking(store, config, { checkIn: "2027-07-14", checkOut: "2027-07-16", guests: 4, locale: "el", guest, holdHours: 48, customTotalCents: 90000 }, "2026-11-21");
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    const r = res.reservation;
+    expect(r).toMatchObject({ status: "hold", totalCents: 90000, guest: { name: "Νίκος" } });
+    expect(new Date(r.expiresAt!).getTime() - Date.now()).toBeGreaterThan(47 * 3_600_000);
+    expect((await store.listReservations({ scope: "pending", today: "2026-11-21" })).map((x) => x.id)).toEqual([r.id]);
+    expect(await createOwnerBooking(store, config, { checkIn: "2027-07-15", checkOut: "2027-07-18", guests: 2, locale: "en", guest, holdHours: 24 }, "2026-11-21")).toEqual({ ok: false, problem: { code: "unavailable", date: "2027-07-15" } });
+    expect(await createOwnerBooking(store, config, { checkIn: "2027-01-10", checkOut: "2027-01-12", guests: 2, locale: "en", guest, holdHours: 24 }, "2026-11-21")).toMatchObject({ ok: false, problem: { code: "closed" } });
+    expect(await createOwnerBooking(store, config, { checkIn: "2027-06-01", checkOut: "2027-06-05", guests: 30, locale: "en", guest, holdHours: 24 }, "2026-11-21")).toMatchObject({ ok: false, problem: { code: "guests" } });
+    // the guest's payment link works with the HMAC token, a random token does not
+    expect(canAccess(r.ref, manageToken(r.ref)!, r.tokenHash)).toBe(true);
+    expect(canAccess(r.ref, "x".repeat(32), r.tokenHash)).toBe(false);
+    // extending moves the deadline; a released hold can't be extended
+    const later = new Date(Date.now() + 72 * 3_600_000).toISOString();
+    expect((await store.extendHold(r.id, later))?.expiresAt).toBe(later);
+    await store.releaseHold(r.id);
+    expect(await store.extendHold(r.id, later)).toBeNull();
+  });
+
+  it("a bank transfer confirms the booking; the balance can follow; refunds never touch the card provider", async () => {
+    const res = await createOwnerBooking(store, config, { checkIn: "2027-06-12", checkOut: "2027-06-19", guests: 4, locale: "en", guest, holdHours: 48 }, "2026-11-21");
+    if (!res.ok) throw new Error();
+    const r = res.reservation;
+    expect(await recordManualPayment(deps, r, { amountCents: r.totalCents + 1, method: "transfer" })).toMatchObject({ ok: false, code: "amount" });
+    const first = await recordManualPayment(deps, r, { amountCents: r.quote.payment.depositCents, method: "transfer" });
+    expect(first).toMatchObject({ ok: true, reservation: { status: "confirmed" } });
+    expect(sent).toContain(`confirmed:${r.ref}`);
+    const confirmed = (await store.getById(r.id))!;
+    await recordManualPayment(deps, confirmed, { amountCents: r.quote.payment.balanceCents, method: "cash" });
+    const payments = await store.listPayments(r.id);
+    expect(payments.map((p) => [p.kind, p.provider])).toEqual([["deposit", "manual"], ["balance", "manual"]]);
+    expect(sent).toContain(`balancePaid:${r.ref}`);
+    // the automatic balance charge leaves fully paid bookings alone
+    const { chargeBalances, cancelReservation: cancel } = await import("@/lib/payments/service");
+    expect(await chargeBalances(deps, "2027-05-13")).toEqual({ charged: 0, failed: 0 });
+    // owner cancels with a full refund: recorded (the owner refunds by bank), no provider call
+    expect(await cancel(deps, confirmed, "2027-05-20", { by: "owner", refundCents: r.totalCents })).toMatchObject({ ok: true, refundCents: r.totalCents });
+    expect((await store.listPayments(r.id)).every((p) => p.refundedCents === p.amountCents)).toBe(true);
+  });
+
+  it("a deposit paid by transfer gets a balance reminder (not a failed-charge email) when the balance falls due", async () => {
+    const res = await createOwnerBooking(store, config, { checkIn: "2027-06-12", checkOut: "2027-06-19", guests: 4, locale: "en", guest, holdHours: 48 }, "2026-11-21");
+    if (!res.ok) throw new Error();
+    await recordManualPayment(deps, res.reservation, { amountCents: res.reservation.quote.payment.depositCents, method: "transfer" });
+    const { chargeBalances } = await import("@/lib/payments/service");
+    expect(await chargeBalances(deps, "2027-05-13")).toEqual({ charged: 0, failed: 1 });
+    expect(sent).toContain(`balanceFailed:${res.reservation.ref}`);
+    expect(await chargeBalances(deps, "2027-05-14")).toEqual({ charged: 0, failed: 0 }); // once
+  });
+
+  it("refuses to record a payment for dates someone else took after the hold expired", async () => {
+    const res = await createOwnerBooking(store, config, { checkIn: "2027-06-12", checkOut: "2027-06-19", guests: 4, locale: "en", guest, holdHours: 1 }, "2026-11-21");
+    if (!res.ok) throw new Error();
+    const { readFile, writeFile } = await import("node:fs/promises");
+    const file = (store as unknown as { file: string }).file;
+    const db = JSON.parse(await readFile(file, "utf8"));
+    db.reservations[0].expiresAt = new Date(Date.now() - 1000).toISOString();
+    await writeFile(file, JSON.stringify(db));
+    await store.addManualBlock("2027-06-14", "2027-06-16", "owner use");
+    expect(await recordManualPayment(deps, res.reservation, { amountCents: 1000, method: "transfer" })).toMatchObject({ ok: false, code: "unavailable" });
+    expect(await store.listPayments(res.reservation.id)).toEqual([]);
+  });
+});

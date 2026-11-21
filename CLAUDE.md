@@ -25,7 +25,10 @@ before using an API from memory.
       (manual blocks, sync now), prices & seasons editor, leads + CSV, photo uploads per section
 - [x] **Phase 6**: edge-case + randomised tests, security review & fixes (docs/SECURITY.md), CSP and
       security headers, axe WCAG AA sweep (0 violations), Lighthouse, GDPR retention job, CI,
-      launch checklist (docs/LAUNCH.md) ← *done, awaiting owner review*
+      launch checklist (docs/LAUNCH.md)
+- [x] **Owner bookings** (after Phase 6): admin "Νέα κράτηση" (from scratch or from a request), agreed price,
+      dates held for the guest for days, emailed payment link (EN/EL), offline payments (transfer/cash)
+      that confirm the booking ← *done, awaiting owner review*
 
 Work in phases; stop at the end of each, summarise, give run/test steps, wait for the owner's "go".
 Commit after each working step. Develop on branch `claude/focused-thompson-tknjd4`.
@@ -147,6 +150,15 @@ src/lib/                  photos, seo (hreflang/OG), structured-data, cn
   config (validated by the same zod schema) and `updateTag("booking-config")` (terms page); photo
   uploads are resized in the browser (≤2400px, 4 MB server limit), re-encoded by sharp (metadata/GPS
   stripped), content-hashed, and `updateTag("site-photos")`. Interior spaces use slot `space-<key>`.
+- **Owner bookings**: `createOwnerBooking()` (booking/service.ts) holds the dates for `holdHours` with the
+  guest filled in; booking rules (min nights, arrival day, advance window, max nights) are overridable,
+  availability and closed dates are not. An agreed price = `withCustomTotal()` (keeps the breakdown,
+  `quote.adjustmentCents` shows as a line). The guest's link is the checkout page with the HMAC manage
+  token (`paymentUrl()`); checkout/confirmation accept it (`canAccess`). Offline payments are payments with
+  `provider: "manual"` (`recordManualPayment()`): the first confirms the hold (if the dates are still free),
+  later ones count as balance; refunds of manual payments are only recorded (`refundVia`). Bookings paid
+  offline have no saved card, so at the balance date the guest gets a reminder (`no_saved_card`), not a
+  failed-charge email. Admin tools that must work without Stripe use `ownerDeps()`.
 - **Security headers**: a new external script/frame/API host must be added to `security-headers.ts`
   (CSP) or it is blocked. Private pages (guest booking pages, admin, API) get `noindex` + same-origin referrer.
 - **Retention**: the daily job deletes leads after 24 months and never-paid checkouts after 90 days

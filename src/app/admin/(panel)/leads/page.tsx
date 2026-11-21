@@ -61,6 +61,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
                 {(["date", "kind", "name", "email", "phone", "dates", "guests", "message", "marketing"] as const).map((c) => (
                   <th key={c} scope="col" className={table.th}>{L.cols[c]}</th>
                 ))}
+                <th scope="col" className={table.th}><span className="sr-only">{L.createBooking}</span></th>
               </tr>
             </thead>
             <tbody>
@@ -80,6 +81,21 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
                   <td className={cn(table.td, "tabular-nums")}>{r.guests ?? A.common.none}</td>
                   <td className={cn(table.td, "max-w-sm whitespace-pre-line")}>{r.message ?? ""}</td>
                   <td className={table.td}>{r.marketing_consent ? A.booking.yes : A.booking.no}</td>
+                  <td className={table.td}>
+                    <Link
+                      href={{
+                        pathname: "/admin/bookings/new",
+                        query: Object.fromEntries(
+                          Object.entries({ name: r.name, email: r.email, phone: r.phone, checkIn: r.check_in, checkOut: r.check_out, guests: r.guests, locale: r.locale, message: r.message })
+                            .filter(([, v]) => v !== undefined && v !== null && v !== "")
+                            .map(([k, v]) => [k, String(v)]),
+                        ),
+                      }}
+                      className="whitespace-nowrap text-ionian underline underline-offset-4"
+                    >
+                      {L.createBooking} →
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>

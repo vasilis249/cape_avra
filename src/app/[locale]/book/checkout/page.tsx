@@ -14,7 +14,7 @@ import { loadBookingConfig } from "@/lib/booking/config";
 import { formatMoney } from "@/lib/booking/pricing";
 import { longDate } from "@/lib/booking/format";
 import { getBookingStore } from "@/lib/booking/store";
-import { tokenMatches } from "@/lib/booking/tokens";
+import { canAccess } from "@/lib/booking/tokens";
 import { currentLocale } from "@/lib/page-meta";
 import { getPaymentProvider } from "@/lib/payments/provider";
 import { siteConfig } from "@content/site.config";
@@ -47,7 +47,7 @@ async function Checkout({ searchParams }: Pick<PageProps<"/[locale]/book/checkou
   const labels = await bookingLabels();
 
   const r = ref && token ? await getBookingStore().getByRef(ref) : null;
-  if (!r || !tokenMatches(token, r.tokenHash)) {
+  if (!r || !canAccess(ref, token, r.tokenHash)) {
     return (
       <Container>
         <p className="max-w-prose text-lead text-ink-soft">{t("notFound")}</p>
@@ -100,6 +100,15 @@ async function Checkout({ searchParams }: Pick<PageProps<"/[locale]/book/checkou
               locale={locale}
               expiresAt={r.expiresAt!}
               provider={client}
+              initialValues={
+                r.guest
+                  ? Object.fromEntries(
+                      Object.entries({ name: r.guest.name, email: r.guest.email, phone: r.guest.phone, country: r.guest.country, arrivalTime: r.guest.arrivalTime, message: r.guest.message }).filter(
+                        (e): e is [string, string] => typeof e[1] === "string" && e[1] !== "",
+                      ),
+                    )
+                  : undefined
+              }
               confirmationPath={getPathname({ href: { pathname: "/book/confirmation", query: { ref, t: token } }, locale })}
               termsLabel={t.rich("terms", {
                 terms: (chunks) => (

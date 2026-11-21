@@ -77,8 +77,8 @@ export type SitePhoto = {
   focal: string | null;
   updatedAt: string;
 };
-/** upcoming = not yet departed (includes guests in the house) */
-export type ReservationScope = "upcoming" | "past" | "cancelled" | "all";
+/** upcoming = not yet departed (includes guests in the house); pending = active holds awaiting payment */
+export type ReservationScope = "upcoming" | "pending" | "past" | "cancelled" | "all";
 export type HoldInput = {
   ref: string;
   tokenHash: string;
@@ -149,6 +149,8 @@ export interface BookingStore {
   /** "booked" = the range covers a confirmed booking or an active hold */
   addManualBlock(start: ISODate, end: ISODate, summary: string): Promise<CalendarBlock | "booked">;
   removeManualBlock(id: string): Promise<boolean>;
+  /** move an active hold's expiry (owner bookings awaiting payment); null if it is no longer an active hold */
+  extendHold(id: string, until: string): Promise<Reservation | null>;
   /** null removes the stored copy (back to the seed in content/booking.ts) */
   saveConfig(config: unknown | null): Promise<void>;
   listNotes(reservationId: string): Promise<ReservationNote[]>;
@@ -440,12 +442,14 @@ class PostgresStore implements BookingStore {
       select * from reservations
        where (${scope} = 'all'
               or (${scope} = 'upcoming' and status = 'confirmed' and check_out > ${today})
+              or (${scope} = 'pending' and status = 'hold' and expires_at > now())
               or (${scope} = 'past' and status = 'confirmed' and check_out <= ${today})
               or (${scope} = 'cancelled' and status = 'cancelled'))
          and (${scope} <> 'all' or status in ('confirmed', 'cancelled', 'hold'))
          and (${like}::text is null or ref ilike ${like} or guest->>'name' ilike ${like} or guest->>'email' ilike ${like})
        order by
          case when ${scope} = 'upcoming' then check_in end asc,
+         case when ${scope} = 'pending' then expires_at end asc,
          case when ${scope} = 'past' then check_in end desc,
          case when ${scope} = 'cancelled' then cancelled_at end desc,
          created_at desc
@@ -472,6 +476,13 @@ class PostgresStore implements BookingStore {
       if (e instanceof Error && e.message === "booked") return "booked" as const;
       throw e;
     }
+  }
+
+  async extendHold(id: string, until: string) {
+    const [row] = await this.sql`
+      update reservations set expires_at = ${until}
+       where id = ${id} and status = 'hold' and expires_at > now() returning *`;
+    return row ? resFromRow(row) : null;
   }
 
   async removeManualBlock(id: string) {
@@ -848,6 +859,8 @@ export class FileStore implements BookingStore {
             ? ["confirmed", "cancelled", "hold"].includes(r.status)
             : scope === "upcoming"
               ? r.status === "confirmed" && r.checkOut > today
+              : scope === "pending"
+                ? r.status === "hold" && r.expiresAt! > this.now()
               : scope === "past"
                 ? r.status === "confirmed" && r.checkOut <= today
                 : r.status === "cancelled";
@@ -856,6 +869,7 @@ export class FileStore implements BookingStore {
       });
       const by = (f: (r: Reservation) => string, dir = 1) => (a: Reservation, b: Reservation) => (f(a) < f(b) ? -dir : f(a) > f(b) ? dir : 0);
       if (scope === "upcoming") list.sort(by((r) => r.checkIn));
+      else if (scope === "pending") list.sort(by((r) => r.expiresAt ?? ""));
       else if (scope === "past") list.sort(by((r) => r.checkIn, -1));
       else if (scope === "cancelled") list.sort(by((r) => r.cancelledAt ?? "", -1));
       else list.sort(by((r) => r.createdAt, -1));
@@ -882,6 +896,14 @@ export class FileStore implements BookingStore {
       const b = { id: crypto.randomUUID(), source: "manual", uid: crypto.randomUUID(), start, end, summary };
       db.blocks.push(b);
       return { id: b.id, source: "manual", uid: b.uid, start, end, summary: summary || null };
+    }, true);
+  }
+  extendHold(id: string, until: string) {
+    return this.tx((db) => {
+      const r = db.reservations.find((x) => x.id === id);
+      if (!r || r.status !== "hold" || r.expiresAt! <= this.now()) return null;
+      r.expiresAt = until;
+      return r;
     }, true);
   }
   removeManualBlock(id: string) {

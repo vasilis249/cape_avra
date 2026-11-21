@@ -10,7 +10,7 @@ import { beginBalancePayment, beginCheckout, cancelReservation, syncPayment } fr
 import { todayIn } from "./dates";
 import { holdStay, type HoldResult } from "./service";
 import { getBookingStore, type GuestDetails, type Reservation } from "./store";
-import { canAccess, tokenMatches } from "./tokens";
+import { canAccess } from "./tokens";
 
 
 /** Step 1: hold the dates for a few minutes and return the guest's private checkout link parts. */
@@ -54,10 +54,11 @@ export type CheckoutState = {
 const confirmationPath = (ref: string, token: string, locale: "en" | "el") =>
   getPathname({ href: { pathname: "/book/confirmation", query: { ref, t: token } }, locale });
 
-async function findReservation(ref: string, token: string, opts: { manage?: boolean } = {}): Promise<Reservation | null> {
+async function findReservation(ref: string, token: string): Promise<Reservation | null> {
   const r = await getBookingStore().getByRef(ref);
   if (!r) return null;
-  return (opts.manage ? canAccess(ref, token, r.tokenHash) : tokenMatches(token, r.tokenHash)) ? r : null;
+  // the original checkout token, or the HMAC "manage" token from emails and owner-sent payment links
+  return canAccess(ref, token, r.tokenHash) ? r : null;
 }
 
 /** Step 2: guest details → hold extended, payment prepared; the browser then shows the payment form. */
@@ -104,7 +105,7 @@ export async function preparePayment(_: CheckoutState, form: FormData): Promise<
 /** Test mode only: what the card form would do. */
 export async function completeTestPayment(input: { ref: string; token: string; locale: "en" | "el"; paymentRef: string; outcome: "success" | "decline"; manage?: boolean }) {
   const v = linkSchema.extend({ paymentRef: z.string().startsWith("test_pi_"), outcome: z.enum(["success", "decline"]), manage: z.boolean().optional() }).parse(input);
-  const r = await findReservation(v.ref, v.token, { manage: v.manage });
+  const r = await findReservation(v.ref, v.token);
   if (!r) return { ok: false as const, error: "notFound" as const };
   const deps = await paymentDeps();
   if (deps.provider.id !== "test") return { ok: false as const, error: "generic" as const };
@@ -122,7 +123,7 @@ export async function prepareBalancePayment(input: { ref: string; token: string;
 > {
   const v = linkSchema.parse(input);
   if (rateLimited(`pay:${await clientIp()}`, 12, 15 * 60 * 1000)) return { ok: false, error: "generic" };
-  const r = await findReservation(v.ref, v.token, { manage: true });
+  const r = await findReservation(v.ref, v.token);
   if (!r) return { ok: false, error: "notFound" };
   try {
     const res = await beginBalancePayment(await paymentDeps(), r);
@@ -142,7 +143,7 @@ export async function cancelBooking(_: CancelState, form: FormData): Promise<Can
   if (!parsed.success) return { status: "error", error: "generic" };
   if (form.get("confirm") !== "on") return { status: "error", error: "confirm" };
   const v = parsed.data;
-  const r = await findReservation(v.ref, v.token, { manage: true });
+  const r = await findReservation(v.ref, v.token);
   if (!r) return { status: "error", error: "generic" };
   try {
     const deps = await paymentDeps();

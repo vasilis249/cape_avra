@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ActionForm } from "@/components/admin/ActionForm";
+import { ActionForm, ConfirmSubmit } from "@/components/admin/ActionForm";
 import { button, buttonDanger, buttonOutline, Card, dateTime, fill, input, label, money, PageTitle, shortDate, StatusBadge, table } from "@/components/admin/ui";
-import { adminCancel, addNote, adminRefund, adminSecurity, resendConfirmation } from "@/lib/admin/actions";
+import { adminCancel, addNote, adminExtendHold, adminManualPayment, adminRefund, adminReleaseHold, adminSecurity, adminSendPaymentLink, resendConfirmation } from "@/lib/admin/actions";
 import { requireAdmin } from "@/lib/admin/auth";
 import { loadBookingConfig } from "@/lib/booking/config";
 import { diffDays, todayIn } from "@/lib/booking/dates";
-import { manageUrl } from "@/lib/booking/emails";
+import { manageUrl, paymentUrl } from "@/lib/booking/emails";
 import { getBookingStore } from "@/lib/booking/store";
 import { cn } from "@/lib/cn";
 import { balanceDueDate, cancellationPreview, outstandingCents, paidCents } from "@/lib/payments/service";
@@ -34,6 +34,11 @@ export default async function BookingPage({ params }: PageProps<"/admin/bookings
   const stripeUrl = (ref: string) => `https://dashboard.stripe.com/${stripeTest ? "test/" : ""}payments/${ref}`;
   const q = r.quote;
   const g = r.guest;
+  const holdActive = r.status === "hold" && !!r.expiresAt && r.expiresAt > new Date().toISOString();
+  const outstanding = outstandingCents(r, payments);
+  const canRecord = (holdActive || r.status === "confirmed") && outstanding > 0;
+  const suggested = r.status === "confirmed" ? outstanding : Math.min(outstanding, r.quote.payment.depositCents);
+  const deadline = r.expiresAt ? dateTime(r.expiresAt) : "";
 
   return (
     <>
@@ -61,6 +66,39 @@ export default async function BookingPage({ params }: PageProps<"/admin/bookings
               </p>
             )}
           </Card>
+
+          {holdActive && (
+            <Card title={B.awaitingTitle} className="border-ionian">
+              <p className="mb-4 text-[0.9375rem]">{fill(B.awaitingLead, { date: deadline })}</p>
+              {paymentUrl(r) && (
+                <div className="mb-4">
+                  <label htmlFor="pay-link" className={label}>{B.paymentLink}</label>
+                  <input id="pay-link" readOnly value={paymentUrl(r)!} className={cn(input, "text-[0.8125rem]")} />
+                </div>
+              )}
+              <div className="flex flex-wrap items-start gap-6">
+                <ActionForm action={adminSendPaymentLink} submit={B.sendLink} submitClass={button}>
+                  <input type="hidden" name="id" value={r.id} />
+                </ActionForm>
+                <ActionForm action={adminExtendHold} submit={B.extendSubmit} submitClass={buttonOutline} className="flex flex-wrap items-end gap-3 space-y-0">
+                  <input type="hidden" name="id" value={r.id} />
+                  <div>
+                    <label htmlFor="extend-hours" className={label}>{B.extend}</label>
+                    <select id="extend-hours" name="hours" defaultValue="48" className={input}>
+                      {Object.entries(A.newBooking.holdOptions).map(([h, text]) => (
+                        <option key={h} value={h}>{text}</option>
+                      ))}
+                    </select>
+                  </div>
+                </ActionForm>
+                <form action={adminReleaseHold} className="self-end">
+                  <input type="hidden" name="id" value={r.id} />
+                  <ConfirmSubmit confirm={B.releaseConfirm} className={buttonDanger}>{B.release}</ConfirmSubmit>
+                </form>
+              </div>
+            </Card>
+          )}
+          {r.status === "expired" && r.guest && <p className="bg-sand px-4 py-3 text-[0.9375rem]">{B.expiredLead}</p>}
 
           <Card title={B.guest}>
             {g ? (
@@ -101,7 +139,10 @@ export default async function BookingPage({ params }: PageProps<"/admin/bookings
                               {B.openInStripe}
                             </a>
                           ) : (
-                            <span className="text-ink-soft">{p.provider}</span>
+                            <span className="text-ink-soft">
+                              {B.providers[p.provider as keyof typeof B.providers] ?? p.provider}
+                              {p.provider === "manual" && ` · ${B.methods[p.providerRef.split("-")[1] as keyof typeof B.methods] ?? ""}`}
+                            </span>
                           )}
                         </td>
                       </tr>
@@ -111,6 +152,29 @@ export default async function BookingPage({ params }: PageProps<"/admin/bookings
               </div>
             )}
           </Card>
+
+          {canRecord && (
+            <Card title={B.manualTitle}>
+              <p className="mb-4 text-[0.9375rem] text-ink-soft">{B.manualLead}</p>
+              <ActionForm action={adminManualPayment} submit={B.manualSubmit} submitClass={buttonOutline} confirm={`${B.manualSubmit}?`}>
+                <input type="hidden" name="id" value={r.id} />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="mp-amount" className={label}>{B.manualAmount}</label>
+                    <input id="mp-amount" name="amount" inputMode="decimal" required defaultValue={(suggested / 100).toFixed(2)} className={input} />
+                  </div>
+                  <div>
+                    <label htmlFor="mp-method" className={label}>{B.manualMethod}</label>
+                    <select id="mp-method" name="method" defaultValue="transfer" className={input}>
+                      {Object.entries(B.methods).map(([k, text]) => (
+                        <option key={k} value={k}>{text}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </ActionForm>
+            </Card>
+          )}
 
           {refundable.length > 0 && (
             <Card title={B.refundTitle}>

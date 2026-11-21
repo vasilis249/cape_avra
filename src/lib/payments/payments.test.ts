@@ -40,6 +40,7 @@ const notify: Notifier = {
   cancelled: async (r, cents) => void sent.push(`cancelled:${r.ref}:${cents}`),
   conflictRefunded: async (r, cents) => void sent.push(`conflict:${r.ref}:${cents}`),
   securityHoldFailed: async (r) => void sent.push(`securityFailed:${r.ref}`),
+    paymentRequest: async (r) => void sent.push(`paymentRequest:${r.ref}`),
 };
 
 async function hold(checkIn: string, checkOut: string) {

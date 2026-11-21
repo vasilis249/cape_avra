@@ -464,7 +464,9 @@
       "title": "We could not charge the balance",
       "intro": "Dear {name},\n\nwe tried to charge the balance of {amount} for your stay to the card you booked with, but the payment did not go through. This often happens when the bank asks you to confirm the payment yourself.",
       "cta": "Pay the balance",
-      "outro": "Your booking remains confirmed. Please pay within the next few days, or reply to this email if anything is unclear."
+      "outro": "Your booking remains confirmed. Please pay within the next few days, or reply to this email if anything is unclear.",
+      "titleNoCard": "The balance is due",
+      "introNoCard": "Dear {name},\n\nthe balance of {amount} for your stay is now due. You can pay it online with the button below, or reply to this email to arrange a bank transfer."
     },
     "cancellation": {
       "subject": "Your booking {ref} is cancelled",
@@ -479,6 +481,14 @@
       "title": "We are sorry",
       "intro": "Dear {name},\n\nyour payment arrived after the time we could hold these dates for you, and in the meantime they were booked by someone else. We have refunded the full {amount} to your card. It usually appears within 5 to 10 working days.",
       "outro": "We would love to welcome you on other dates: simply reply to this email."
+    },
+    "paymentRequest": {
+      "subject": "Your stay at Cape Avra is reserved · {ref}",
+      "title": "Your dates are reserved",
+      "intro": "Dear {name},\n\nas agreed, we have reserved these dates for you. To confirm the booking, please pay {amount} by {deadline}.",
+      "cta": "Pay and confirm",
+      "outro": "You can pay by card, Apple Pay or Google Pay. If you prefer a bank transfer, simply reply to this email.",
+      "dueNow": "Due now"
     }
   },
   "booking": {
@@ -530,7 +540,8 @@
       "onArrival": "Payable on arrival",
       "note": "No payment yet. You confirm the price at the next step.",
       "continue": "Continue",
-      "holding": "Holding your dates…"
+      "holding": "Holding your dates…",
+      "adjustment": "Agreed price adjustment"
     },
     "checkout": {
       "eyebrow": "Booking",

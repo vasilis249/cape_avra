@@ -40,6 +40,8 @@ whoever deploys. Setup details for each service are in [DEPLOY.md](DEPLOY.md).
 - [ ] Declined card `4000 0000 0000 9995`: clear message, dates still held, retry works
 - [ ] Guest "Manage your booking" → cancel → refund visible in Stripe and the email arrives
 - [ ] Admin: sign in by email link; the bookings appear; add a note; partial refund; owner cancellation
+- [ ] Admin → Αιτήματα → Κράτηση: book a request with an agreed price; the guest email arrives with the
+      payment link; pay through it. Then a second one paid "by bank transfer" (record it in the booking)
 - [ ] Admin → Calendar: block a week → it disappears from the public calendar and appears in the iCal export
 - [ ] Airbnb/Booking.com: import our iCal link there; put our `ICAL_FEEDS` links here; block a date on Airbnb →
       after the next sync (≤ 30 min, or "Sync now") it is unavailable on our calendar, and vice versa

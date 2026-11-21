@@ -26,6 +26,12 @@ export function manageUrl(r: Reservation): string | null {
   return t ? `${siteUrl}${getPathname({ href: { pathname: "/book/manage", query: { ref: r.ref, t } }, locale: r.locale })}` : null;
 }
 
+/** link for the guest to pay and confirm a booking the owner arranged (checkout page, HMAC token) */
+export function paymentUrl(r: Reservation): string | null {
+  const t = manageToken(r.ref);
+  return t ? `${siteUrl}${getPathname({ href: { pathname: "/book/checkout", query: { ref: r.ref, t } }, locale: r.locale })}` : null;
+}
+
 function stayRows(r: Reservation, config: BookingConfig, payments: Payment[]) {
   const m = M[r.locale];
   const money = (c: number) => formatMoney(c, r.locale);
@@ -93,19 +99,21 @@ export function createEmailNotifier(config: BookingConfig): Notifier {
       await sendEmail({ to: r.guest.email, subject: fill(m.subject, { ref: r.ref }), replyTo: siteConfig.contact.email, ...mail });
     },
 
-    async balanceFailed(r, reason) {
+    async balanceFailed(r, reason, amountCents) {
       if (!r.guest) return;
       const m = M[r.locale].balanceFailed;
       const link = manageUrl(r);
-      const mail = emailLayout(m.title, stayRows(r, config, []).slice(0, 3), fill(m.intro, { name: r.guest.name, amount: formatMoney(r.quote.payment.balanceCents, r.locale) }), {
+      const noCard = reason === "no_saved_card"; // paid offline so far: a reminder, not a failed charge
+      const amount = formatMoney(amountCents ?? r.quote.payment.balanceCents, r.locale);
+      const mail = emailLayout(noCard ? m.titleNoCard : m.title, stayRows(r, config, []).slice(0, 3), fill(noCard ? m.introNoCard : m.intro, { name: r.guest.name, amount }), {
         cta: link ? { label: m.cta, url: link } : undefined,
         outro: m.outro,
       });
       await sendEmail({ to: r.guest.email, subject: fill(m.subject, { ref: r.ref }), replyTo: siteConfig.contact.email, ...mail });
       const owner = emailLayout(`Η αυτόματη χρέωση υπολοίπου απέτυχε · ${r.ref}`, [
         ["Κράτηση", `${r.ref} · ${r.checkIn} → ${r.checkOut}`],
-        ["Υπόλοιπο", formatMoney(r.quote.payment.balanceCents, "el")],
-        ["Αιτία", reason],
+        ["Υπόλοιπο", formatMoney(amountCents ?? r.quote.payment.balanceCents, "el")],
+        ["Αιτία", noCard ? "Δεν υπάρχει αποθηκευμένη κάρτα (πληρωμή εκτός ιστότοπου). Ο επισκέπτης έλαβε υπενθύμιση." : reason],
         ...guestRows(r),
       ], "Ο επισκέπτης έλαβε email με σύνδεσμο για να πληρώσει online. Αν δεν πληρώσει, επικοινωνήστε μαζί του.");
       await sendEmail({ to: ownerInbox(), subject: `Αποτυχία χρέωσης υπολοίπου ${r.ref}`, replyTo: r.guest.email, ...owner });
@@ -143,6 +151,21 @@ export function createEmailNotifier(config: BookingConfig): Notifier {
         ...guestRows(r),
       ], "Ο επισκέπτης πλήρωσε αφού είχε λήξει η προσωρινή κράτηση και οι ημερομηνίες είχαν ήδη κλειστεί. Έγινε αυτόματα πλήρης επιστροφή. Ίσως αξίζει να του προτείνετε άλλες ημερομηνίες.");
       await sendEmail({ to: ownerInbox(), subject: `Αυτόματη επιστροφή ${r.ref}`, replyTo: r.guest.email, ...owner });
+    },
+
+    async paymentRequest(r, url) {
+      if (!r.guest) return;
+      const m = M[r.locale].paymentRequest;
+      const deadline = r.expiresAt
+        ? new Date(r.expiresAt).toLocaleString(r.locale === "el" ? "el-GR" : "en-GB", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: config.timeZone })
+        : "";
+      const rows = stayRows(r, config, []).slice(0, 6);
+      rows.push([m.dueNow, formatMoney(r.quote.payment.depositCents, r.locale)]);
+      const mail = emailLayout(m.title, rows, fill(m.intro, { name: r.guest.name, amount: formatMoney(r.quote.payment.depositCents, r.locale), deadline }), {
+        cta: { label: m.cta, url },
+        outro: m.outro,
+      });
+      await sendEmail({ to: r.guest.email, subject: fill(m.subject, { ref: r.ref }), replyTo: siteConfig.contact.email, ...mail });
     },
 
     async securityHoldFailed(r, reason) {

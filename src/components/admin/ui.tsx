@@ -8,7 +8,7 @@ export const money = (cents: number) =>
 export const shortDate = (d: string) =>
   new Date(`${d.slice(0, 10)}T12:00:00Z`).toLocaleDateString("el-GR", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 export const dateTime = (iso: string) =>
-  new Date(iso).toLocaleString("el-GR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Athens" });
+  new Date(iso).toLocaleString("el-GR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Europe/Athens" });
 
 export function PageTitle({ children, actions }: { children: ReactNode; actions?: ReactNode }) {
   return (

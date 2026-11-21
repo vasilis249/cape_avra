@@ -36,6 +36,7 @@ export function CheckoutForm({
   expiresAt: initialExpiry,
   provider,
   confirmationPath,
+  initialValues,
   labels,
   termsLabel,
 }: {
@@ -45,6 +46,8 @@ export function CheckoutForm({
   expiresAt: string;
   provider: ClientConfig;
   confirmationPath: string;
+  /** details already known (a booking the owner arranged) */
+  initialValues?: Record<string, string>;
   labels: CheckoutLabels;
   termsLabel: ReactNode;
 }) {
@@ -81,8 +84,10 @@ export function CheckoutForm({
     );
   }
 
-  const v = state.values ?? {};
-  const mmss = left === null ? "" : `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+  const v = state.values ?? initialValues ?? {};
+  const pad = (n: number) => String(n).padStart(2, "0");
+  // h:mm:ss for owner bookings held for days, m:ss for the usual 15 minutes
+  const mmss = left === null ? "" : left >= 3600 ? `${Math.floor(left / 3600)}:${pad(Math.floor((left % 3600) / 60))}:${pad(left % 60)}` : `${Math.floor(left / 60)}:${pad(left % 60)}`;
 
   if (state.status === "pay" && state.payment && editing !== state) {
     return (
