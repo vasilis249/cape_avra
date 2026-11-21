@@ -2,7 +2,7 @@ import "server-only";
 import type { BookingConfig } from "@/lib/booking/config-schema";
 import { addDays, diffDays, type ISODate } from "@/lib/booking/dates";
 import { refundFor } from "@/lib/booking/pricing";
-import type { BookingStore, GuestDetails, Payment, PaymentKind, PaymentStatus, Reservation } from "@/lib/booking/store";
+import type { BookingStore, GuestDetails, Payment, PaymentKind, Reservation } from "@/lib/booking/store";
 import type { PaymentProvider, ProviderPayment } from "./provider";
 
 /**
