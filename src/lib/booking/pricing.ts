@@ -1,5 +1,5 @@
 import type { BookingConfig, Season } from "./config-schema";
-import { inRecurringRange, month, nightsOf, weekday, type ISODate } from "./dates";
+import { addDays, diffDays, inRecurringRange, month, nightsOf, weekday, type ISODate } from "./dates";
 
 /** Integer cents throughout; convert once at the edges. */
 export const toCents = (euros: number) => Math.round(euros * 100);
@@ -27,14 +27,20 @@ export type Quote = {
   totalCents: number;
   /** charged on arrival (line items with includedInTotal: false) */
   payOnArrivalCents: number;
-  payment: { depositCents: number; balanceCents: number; mode: "full" | "deposit" };
+  /** what is charged now and later. Late bookings (inside the balance window) pay in full. */
+  payment: { depositCents: number; balanceCents: number; mode: "full" | "deposit"; balanceDueDate: ISODate | null };
 };
 
 /**
  * Price a stay. Assumes the stay has been validated (see availability.ts);
  * nights outside every season throw, because they cannot be priced.
  */
-export function quoteStay(config: BookingConfig, input: { checkIn: ISODate; checkOut: ISODate; guests: number }): Quote {
+export function quoteStay(
+  config: BookingConfig,
+  input: { checkIn: ISODate; checkOut: ISODate; guests: number },
+  /** property-local today; when the balance would already be due, the plan becomes "full" */
+  today?: ISODate,
+): Quote {
   const nightDates = nightsOf(input.checkIn, input.checkOut);
   if (nightDates.length === 0) throw new Error("A stay needs at least one night");
 
@@ -72,8 +78,10 @@ export function quoteStay(config: BookingConfig, input: { checkIn: ISODate; chec
   const totalCents = subtotalCents + lineItems.filter((l) => l.includedInTotal).reduce((s, l) => s + l.cents, 0);
   const payOnArrivalCents = lineItems.filter((l) => !l.includedInTotal).reduce((s, l) => s + l.cents, 0);
 
-  const depositCents =
-    config.payment.mode === "full" ? totalCents : Math.round((totalCents * config.payment.depositPercent) / 100);
+  const balanceDueDate = addDays(input.checkIn, -config.payment.balanceDaysBeforeArrival);
+  const late = today !== undefined && diffDays(today, balanceDueDate) <= 0;
+  const mode = config.payment.mode === "full" || late ? "full" : "deposit";
+  const depositCents = mode === "full" ? totalCents : Math.round((totalCents * config.payment.depositPercent) / 100);
 
   return {
     currency: config.currency,
@@ -89,7 +97,7 @@ export function quoteStay(config: BookingConfig, input: { checkIn: ISODate; chec
     lineItems,
     totalCents,
     payOnArrivalCents,
-    payment: { mode: config.payment.mode, depositCents, balanceCents: totalCents - depositCents },
+    payment: { mode, depositCents, balanceCents: totalCents - depositCents, balanceDueDate: mode === "full" ? null : balanceDueDate },
   };
 }
 

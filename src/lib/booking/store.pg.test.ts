@@ -22,11 +22,11 @@ suite("PostgresStore (integration)", () => {
   beforeAll(async () => {
     process.env.DATABASE_URL = url;
     sql = postgres(url!, { max: 1 });
-    await sql`truncate reservations, calendar_blocks`;
+    await sql`truncate reservations, calendar_blocks, payments, payment_events cascade`;
     store = (await import("./store")).getBookingStore();
   });
   afterAll(async () => {
-    await sql`truncate reservations, calendar_blocks`;
+    await sql`truncate reservations, calendar_blocks, payments, payment_events cascade`;
     await sql.end();
   });
 
@@ -36,11 +36,11 @@ suite("PostgresStore (integration)", () => {
     expect((await hold("CA-TEST-03", "2027-06-20", "2027-06-25"))?.status).toBe("hold");
   });
 
-  it("confirms only an active hold, and confirmed stays block the calendar", async () => {
+  it("confirms a paid hold (idempotently), and confirmed stays block the calendar", async () => {
     const r = await store.getByRef("CA-TEST-01");
-    const ok = await store.confirm(r!.id, { name: "A", email: "a@example.com" }, { provider: "test", status: "test", paidCents: 1 });
-    expect(ok?.status).toBe("confirmed");
-    expect(await store.confirm(r!.id, { name: "A", email: "a@example.com" }, { provider: "test", status: "test", paidCents: 1 })).toBeNull();
+    await store.saveGuest(r!.id, { name: "A", email: "a@example.com" }, 20);
+    expect((await store.confirmPaid(r!.id))?.status).toBe("confirmed");
+    expect((await store.confirmPaid(r!.id))?.status).toBe("confirmed");
     const ranges = await store.blockedRanges("2027-06-01", "2027-07-01");
     expect(ranges.map((x) => `${x.start}/${x.end}`).sort()).toEqual(["2027-06-15/2027-06-20", "2027-06-20/2027-06-25"]);
   });
@@ -65,5 +65,64 @@ suite("PostgresStore (integration)", () => {
     expect(due.map((r) => r.ref)).toEqual(["CA-TEST-01"]);
     await store.markEmailSent(due[0].id, "preArrival");
     expect(await store.dueForEmail("preArrival", "2027-06-15")).toEqual([]);
+  });
+
+  it("late payment: confirms an expired hold only if the dates are still free", async () => {
+    const free = await hold("CA-LATE-01", "2027-09-01", "2027-09-05");
+    await sql`update reservations set expires_at = now() - interval '1 second' where id = ${free!.id}`;
+    await store.expireHolds();
+    expect((await store.confirmPaid(free!.id))?.status).toBe("confirmed");
+
+    const lost = await hold("CA-LATE-02", "2027-09-10", "2027-09-15");
+    await sql`update reservations set expires_at = now() - interval '1 second' where id = ${lost!.id}`;
+    expect((await hold("CA-LATE-03", "2027-09-12", "2027-09-14"))?.status).toBe("hold");
+    expect(await store.confirmPaid(lost!.id)).toBeNull();
+  });
+
+  it("records payments with atomic transitions and one live balance per stay", async () => {
+    const r = (await store.getByRef("CA-LATE-01"))!;
+    await store.createPayment({ reservationId: r.id, kind: "deposit", provider: "test", providerRef: "pi_1", amountCents: 1000, currency: "EUR", status: "pending" });
+    expect((await store.transitionPayment("pi_1", ["pending"], { status: "succeeded" }))?.status).toBe("succeeded");
+    expect(await store.transitionPayment("pi_1", ["pending"], { status: "succeeded" })).toBeNull();
+    await store.createPayment({ reservationId: r.id, kind: "balance", provider: "test", providerRef: "pi_2", amountCents: 2000, currency: "EUR", status: "pending" });
+    await expect(
+      store.createPayment({ reservationId: r.id, kind: "balance", provider: "test", providerRef: "pi_3", amountCents: 2000, currency: "EUR", status: "pending" }),
+    ).rejects.toThrow();
+    await store.updatePayment("pi_1", { refundedCents: 400 });
+    expect((await store.listPayments(r.id)).map((p) => [p.providerRef, p.status, p.refundedCents])).toEqual([
+      ["pi_1", "succeeded", 400],
+      ["pi_2", "pending", 0],
+    ]);
+    await expect(store.updatePayment("pi_1", { refundedCents: 5000 })).rejects.toThrow(); // more than paid
+  });
+
+  it("deduplicates webhook events and claims emails once", async () => {
+    expect(await store.recordEvent("evt_1", "stripe", "payment_intent.succeeded")).toBe(true);
+    expect(await store.recordEvent("evt_1", "stripe", "payment_intent.succeeded")).toBe(true); // not processed yet: retry allowed
+    await store.markEventProcessed("evt_1");
+    expect(await store.recordEvent("evt_1", "stripe", "payment_intent.succeeded")).toBe(false);
+    const r = (await store.getByRef("CA-LATE-01"))!;
+    const claims = await Promise.all([store.claimEmail(r.id, "confirmation"), store.claimEmail(r.id, "confirmation")]);
+    expect(claims.filter(Boolean)).toHaveLength(1);
+  });
+
+  it("finds balances due and security deposits to place and release", async () => {
+    const r = (await store.getByRef("CA-LATE-01"))!; // 2027-09-01 → 05, has a pending balance
+    await sql`update reservations set balance_due_date = '2027-08-02', payment_method_id = 'pm_1', provider_customer_id = 'cus_1' where id = ${r.id}`;
+    expect(await store.balancesDue("2027-08-02")).toEqual([]); // pending balance exists
+    await store.updatePayment("pi_2", { status: "failed" });
+    expect(await store.balancesDue("2027-08-02")).toEqual([]); // failed: guest pays from the manage page
+    await sql`delete from payments where provider_ref = 'pi_2'`;
+    expect((await store.balancesDue("2027-08-02")).map((x) => x.ref)).toEqual(["CA-LATE-01"]);
+    expect(await store.balancesDue("2027-08-01")).toEqual([]);
+
+    expect(await store.securityHoldsToPlace("2027-08-31", 2)).toEqual([]);
+    expect((await store.securityHoldsToPlace("2027-09-01", 2)).map((x) => x.ref)).toEqual(["CA-LATE-01"]);
+    await store.createPayment({ reservationId: r.id, kind: "security_deposit", provider: "test", providerRef: "pi_sec", amountCents: 50000, currency: "EUR", status: "authorized" });
+    expect(await store.securityHoldsToPlace("2027-09-03", 2)).toEqual([]);
+    expect(await store.securityHoldsToRelease("2027-09-06", 2)).toEqual([]);
+    expect((await store.securityHoldsToRelease("2027-09-07", 2)).map((p) => p.providerRef)).toEqual(["pi_sec"]);
+    await store.updatePayment("pi_sec", { status: "canceled" }); // lapsed after 7 days → re-placed while in the window
+    expect((await store.securityHoldsToPlace("2027-09-04", 2)).map((x) => x.ref)).toEqual(["CA-LATE-01"]);
   });
 });

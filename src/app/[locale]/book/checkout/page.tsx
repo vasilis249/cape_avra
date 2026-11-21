@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getTranslations } from "next-intl/server";
 import { CheckoutForm } from "@/components/booking/CheckoutForm";
-import { bookingLabels } from "@/components/booking/labels";
+import { bookingLabels, paymentLabels } from "@/components/booking/labels";
 import { PriceSummary } from "@/components/booking/PriceSummary";
 import { StaySummary } from "@/components/booking/StaySummary";
 import { SiteHeader } from "@/components/layout/SiteHeader";
@@ -12,10 +12,12 @@ import { Container, Eyebrow, Hairline } from "@/components/ui/Layout";
 import { getPathname, Link } from "@/i18n/navigation";
 import { loadBookingConfig } from "@/lib/booking/config";
 import { formatMoney } from "@/lib/booking/pricing";
+import { longDate } from "@/lib/booking/format";
 import { getBookingStore } from "@/lib/booking/store";
 import { tokenMatches } from "@/lib/booking/tokens";
 import { currentLocale } from "@/lib/page-meta";
 import { getPaymentProvider } from "@/lib/payments/provider";
+import { siteConfig } from "@content/site.config";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations({ locale: await currentLocale(), namespace: "meta.pages.checkout" });
@@ -59,14 +61,20 @@ async function Checkout({ searchParams }: Pick<PageProps<"/[locale]/book/checkou
   const active = r.status === "hold" && !!r.expiresAt && r.expiresAt > new Date().toISOString();
 
   const config = await loadBookingConfig();
-  let paymentMode: "test" | "live" | "unavailable" = "unavailable";
-  try {
-    paymentMode = getPaymentProvider().id === "test" ? "test" : "live";
-  } catch {}
+  const client = await getPaymentProvider()
+    .then((p) => p.client())
+    .catch(() => null);
   const due = formatMoney(r.quote.payment.depositCents, locale);
+  const { balanceCents, balanceDueDate } = r.quote.payment;
+  const note =
+    balanceCents > 0 && balanceDueDate
+      ? t("savedCardNote", { balance: formatMoney(balanceCents, locale), date: longDate(balanceDueDate, locale) })
+      : config.payment.securityDeposit > 0
+        ? t("savedCardNoteFull")
+        : null;
   const tiers = [...config.cancellation].sort((a, b) => b.daysBefore - a.daysBefore);
   const formErrors = Object.fromEntries(
-    ["required", "email", "tooLong", "generic"].map((k) => [k, tf.raw(`errors.${k}` as "errors.required") as string]),
+    ["required", "email", "tooLong", "generic"].map((k) => [k, (tf.raw(`errors.${k}` as "errors.required") as string).replace("{email}", siteConfig.contact.email)]),
   );
 
   return (
@@ -83,7 +91,7 @@ async function Checkout({ searchParams }: Pick<PageProps<"/[locale]/book/checkou
                 {t("backToDates")}
               </ButtonLink>
             </div>
-          ) : paymentMode === "unavailable" ? (
+          ) : !client ? (
             <p className="bg-sand p-8 text-ink">{t("paymentsUnavailable")}</p>
           ) : (
             <CheckoutForm
@@ -91,6 +99,8 @@ async function Checkout({ searchParams }: Pick<PageProps<"/[locale]/book/checkou
               token={token}
               locale={locale}
               expiresAt={r.expiresAt!}
+              provider={client}
+              confirmationPath={getPathname({ href: { pathname: "/book/confirmation", query: { ref, t: token } }, locale })}
               termsLabel={t.rich("terms", {
                 terms: (chunks) => (
                   <Link href="/legal/terms" target="_blank" className="text-ionian underline decoration-ionian/40 underline-offset-4">
@@ -109,9 +119,10 @@ async function Checkout({ searchParams }: Pick<PageProps<"/[locale]/book/checkou
                 message: t("message"),
                 optional: tf("optional"),
                 marketing: tf("marketing"),
-                submit: paymentMode === "test" ? t("payTest") : t("pay", { amount: due }),
+                submit: t("continueToPayment"),
                 processing: t("processing"),
-                testNotice: paymentMode === "test" ? t("testNotice") : null,
+                editDetails: t("editDetails"),
+                payment: await paymentLabels({ submit: t("pay", { amount: due }), note, test: client.provider === "test" }),
                 heldFor: t.raw("heldFor") as string,
                 expired: t("expired"),
                 backToDates: t("backToDates"),
@@ -120,7 +131,7 @@ async function Checkout({ searchParams }: Pick<PageProps<"/[locale]/book/checkou
                   terms: t("termsError"),
                   notFound: t("notFound"),
                   paymentsUnavailable: t("paymentsUnavailable"),
-                  paymentFailed: tf.raw("errors.generic").replace("{email}", "hello@capeavra.com"),
+                  paymentFailed: t("paymentFailed"),
                 },
               }}
             />

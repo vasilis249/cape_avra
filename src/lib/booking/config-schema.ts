@@ -58,8 +58,10 @@ export const bookingConfigSchema = z.object({
     depositPercent: z.number().min(1).max(100),
     /** balance charged automatically this many days before arrival */
     balanceDaysBeforeArrival: z.number().int().min(1),
-    /** security deposit held on the card (0 = none) */
+    /** security deposit in euros, authorised (not charged) on the saved card during the stay; 0 = none */
     securityDeposit: z.number().nonnegative(),
+    /** the authorisation is released this many days after check-out (time to check the house) */
+    securityDepositReleaseDays: z.number().int().min(0).max(5).default(2),
   }),
   /** refund % depending on days before arrival; first matching tier (sorted by daysBefore desc) applies */
   cancellation: z.array(z.object({ daysBefore: z.number().int().min(0), refundPercent: z.number().min(0).max(100) })).min(1),

@@ -18,6 +18,7 @@ export const routing = defineRouting({
     "/book": { en: "/book", el: "/kratisi" },
     "/book/checkout": { en: "/book/checkout", el: "/kratisi/oloklirosi" },
     "/book/confirmation": { en: "/book/confirmation", el: "/kratisi/epivevaiosi" },
+    "/book/manage": { en: "/book/manage", el: "/kratisi/diacheirisi" },
     "/faq": { en: "/faq", el: "/syxnes-erotiseis" },
     "/contact": { en: "/contact", el: "/epikoinonia" },
     "/legal/privacy": { en: "/legal/privacy", el: "/nomika/aporrito" },

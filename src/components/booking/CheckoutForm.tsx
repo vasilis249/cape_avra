@@ -2,7 +2,9 @@
 
 import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
-import { confirmBooking, type ConfirmState } from "@/lib/booking/actions";
+import { preparePayment, type CheckoutState } from "@/lib/booking/actions";
+import type { ClientConfig } from "@/lib/payments/provider";
+import { PaymentStep, type PaymentLabels } from "./PaymentStep";
 import { buttonClasses } from "@/components/ui/Button";
 import { Checkbox, TextArea, TextField } from "@/components/forms/fields";
 
@@ -19,7 +21,8 @@ export type CheckoutLabels = {
   marketing: string;
   submit: string;
   processing: string;
-  testNotice: string | null;
+  editDetails: string;
+  payment: PaymentLabels;
   heldFor: string; // {time}
   expired: string;
   backToDates: string;
@@ -30,7 +33,9 @@ export function CheckoutForm({
   refCode,
   token,
   locale,
-  expiresAt,
+  expiresAt: initialExpiry,
+  provider,
+  confirmationPath,
   labels,
   termsLabel,
 }: {
@@ -38,12 +43,17 @@ export function CheckoutForm({
   token: string;
   locale: "en" | "el";
   expiresAt: string;
+  provider: ClientConfig;
+  confirmationPath: string;
   labels: CheckoutLabels;
   termsLabel: ReactNode;
 }) {
-  const [state, action, pending] = useActionState<ConfirmState, FormData>(confirmBooking, { status: "idle" });
+  const [state, action, pending] = useActionState<CheckoutState, FormData>(preparePayment, { status: "idle" });
+  // "change details" goes back to the form for the current payment state; a new submit shows payment again
+  const [editing, setEditing] = useState<CheckoutState | null>(null);
   const [left, setLeft] = useState<number | null>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
+  const expiresAt = state.expiresAt ?? initialExpiry; // extended while paying
 
   // hold countdown (client clock; the server re-checks expiry on submit)
   useEffect(() => {
@@ -72,8 +82,41 @@ export function CheckoutForm({
   }
 
   const v = state.values ?? {};
-  const err = (k: string) => (state.fieldErrors?.[k] ? (labels.errors[state.fieldErrors[k]] ?? labels.errors.required) : undefined);
   const mmss = left === null ? "" : `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+
+  if (state.status === "pay" && state.payment && editing !== state) {
+    return (
+      <div className="space-y-10">
+        <p className="text-[0.9375rem] text-ink-soft" aria-live="off">
+          {labels.heldFor.replace("{time}", mmss)}
+        </p>
+        <div className="flex flex-wrap items-baseline justify-between gap-4 border-b border-limestone/60 pb-6">
+          <div>
+            <h2 className="text-[0.75rem] tracking-[0.14em] text-ink-soft uppercase">{labels.detailsTitle}</h2>
+            <p className="mt-2 text-ink">{v.name}</p>
+            <p className="text-[0.9375rem] text-ink-soft">
+              {v.email} · {v.phone}
+            </p>
+          </div>
+          <button type="button" onClick={() => setEditing(state)} className="text-[0.875rem] text-ionian underline underline-offset-4">
+            {labels.editDetails}
+          </button>
+        </div>
+        <PaymentStep
+          provider={provider}
+          payment={state.payment}
+          returnPath={confirmationPath}
+          refCode={refCode}
+          token={token}
+          locale={locale}
+          billing={{ name: v.name, email: v.email, phone: v.phone }}
+          labels={labels.payment}
+        />
+      </div>
+    );
+  }
+
+  const err = (k: string) => (state.fieldErrors?.[k] ? (labels.errors[state.fieldErrors[k]] ?? labels.errors.required) : undefined);
 
   return (
     <form key={JSON.stringify(v)} action={action} noValidate className="grid gap-6 sm:grid-cols-2">
@@ -108,7 +151,7 @@ export function CheckoutForm({
         <button type="submit" disabled={pending} className={buttonClasses("primary", "md", "w-full disabled:opacity-60 sm:w-auto")}>
           {pending ? labels.processing : labels.submit}
         </button>
-        {labels.testNotice && <p className="mt-3 text-[0.8125rem] text-[#9a4a2a]">{labels.testNotice}</p>}
+        {labels.payment.testNotice && <p className="mt-3 text-[0.8125rem] text-[#9a4a2a]">{labels.payment.testNotice}</p>}
       </div>
     </form>
   );

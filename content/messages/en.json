@@ -33,6 +33,9 @@
       },
       "confirmation": {
         "title": "Booking confirmed"
+      },
+      "manage": {
+        "title": "Manage your booking"
       }
     }
   },
@@ -437,14 +440,44 @@
       "guests": "Guests",
       "nights": "Nights",
       "total": "Total",
-      "paid": "Paid now",
+      "paid": "Paid",
       "balance": "Balance",
       "balanceDue": "{amount}, due on {date}",
       "from": "from {time}",
       "by": "by {time}",
       "address": "Address",
       "directions": "Directions",
-      "notes": "Good to know"
+      "notes": "Good to know",
+      "refund": "Refund",
+      "securityDeposit": "Security deposit",
+      "securityDepositNote": "{amount}, authorised on your card during your stay (not charged) and released {days} days after departure"
+    },
+    "manage": "Manage your booking",
+    "balancePaid": {
+      "subject": "Balance received · {ref}",
+      "title": "Your stay is fully paid",
+      "intro": "Dear {name},\n\nwe have received the balance for your stay. Nothing more is due.",
+      "outro": "About {days} days before you arrive we will send you directions and everything you need. If you have any questions, simply reply to this email."
+    },
+    "balanceFailed": {
+      "subject": "Action needed: the balance for your stay · {ref}",
+      "title": "We could not charge the balance",
+      "intro": "Dear {name},\n\nwe tried to charge the balance of {amount} for your stay to the card you booked with, but the payment did not go through. This often happens when the bank asks you to confirm the payment yourself.",
+      "cta": "Pay the balance",
+      "outro": "Your booking remains confirmed. Please pay within the next few days, or reply to this email if anything is unclear."
+    },
+    "cancellation": {
+      "subject": "Your booking {ref} is cancelled",
+      "title": "Booking cancelled",
+      "intro": "Dear {name},\n\nas requested, your booking {ref} has been cancelled.",
+      "refund": "A refund of {amount} is on its way to your card. It usually appears within 5 to 10 working days.",
+      "noRefund": "Under the cancellation policy, no refund is due for this cancellation. If you have any questions, simply reply to this email."
+    },
+    "conflict": {
+      "subject": "Your payment has been refunded · {ref}",
+      "title": "We are sorry",
+      "intro": "Dear {name},\n\nyour payment arrived after the time we could hold these dates for you, and in the meantime they were booked by someone else. We have refunded the full {amount} to your card. It usually appears within 5 to 10 working days.",
+      "outro": "We would love to welcome you on other dates: simply reply to this email."
     }
   },
   "booking": {
@@ -519,14 +552,65 @@
       "testNotice": "Test mode: no real payment is taken.",
       "paymentsUnavailable": "Online payment is not available yet. Please write to us to confirm these dates.",
       "processing": "Confirming…",
-      "notFound": "We could not find this booking. Please check the link, or write to us."
+      "notFound": "We could not find this booking. Please check the link, or write to us.",
+      "continueToPayment": "Continue to payment",
+      "paymentTitle": "Payment",
+      "editDetails": "Change details",
+      "savedCardNote": "Your card is stored securely by our payment provider, Stripe, to charge the balance of {balance} on {date} and to authorise the security deposit during your stay. We never see your card number.",
+      "savedCardNoteFull": "Your card is stored securely by our payment provider, Stripe, to authorise the security deposit during your stay. We never see your card number.",
+      "securePayment": "Payments are processed securely by Stripe. We never see your card number.",
+      "payTestDecline": "Simulate a declined card",
+      "paymentFailed": "The payment did not go through. Please check your card details or try another card.",
+      "loadingPayment": "Loading secure payment…",
+      "paymentLoadError": "The payment form could not be loaded. Please refresh the page, or write to us.",
+      "paymentDetails": "Card or wallet"
     },
     "confirmation": {
       "eyebrow": "Confirmed",
       "title": "Your stay is confirmed",
       "lead": "Thank you, {name}. We have sent all the details to {email}.",
       "reference": "Booking reference",
-      "next": "About {days} days before your arrival we will send you directions and everything you need."
+      "next": "About {days} days before your arrival we will send you directions and everything you need.",
+      "pendingEyebrow": "Almost there",
+      "pendingTitle": "We are confirming your payment",
+      "pendingLead": "This usually takes a few seconds. The page updates by itself, and you will also receive an email.",
+      "failedTitle": "The payment did not go through",
+      "failedLead": "Your card was not charged. You can try again while we hold your dates.",
+      "tryAgain": "Try again",
+      "conflictTitle": "These dates were booked meanwhile",
+      "conflictLead": "Your payment arrived after the hold had expired, and someone else had booked these dates. We have refunded the full amount to your card. Write to us and we will gladly find other dates for you.",
+      "manage": "Manage your booking"
+    },
+    "manage": {
+      "eyebrow": "Your booking",
+      "title": "Manage your booking",
+      "status": "Status",
+      "statusConfirmed": "Confirmed",
+      "statusCancelled": "Cancelled",
+      "statusOther": "Not confirmed",
+      "payments": "Payments",
+      "paid": "Paid",
+      "refunded": "Refunded",
+      "balance": "Balance",
+      "balanceAuto": "{amount}, charged automatically to your card on {date}",
+      "balanceNow": "{amount}, due now",
+      "paidInFull": "Fully paid",
+      "payBalance": "Pay the balance now ({amount})",
+      "payBalanceTitle": "Pay the balance",
+      "balanceThanks": "Thank you: the balance has been paid.",
+      "securityDeposit": "Security deposit",
+      "cancelTitle": "Cancel your booking",
+      "cancelPreview": "If you cancel today ({days} days before arrival), you receive a refund of {amount} ({percent}% of what you have paid).",
+      "cancelNoRefund": "If you cancel today ({days} days before arrival), no refund is due under the cancellation policy.",
+      "cancelConfirm": "I understand, and I want to cancel this booking",
+      "cancelConfirmError": "Please tick the box to confirm.",
+      "cancelButton": "Cancel booking",
+      "cancelling": "Cancelling…",
+      "cancelledLead": "This booking was cancelled on {date}.",
+      "refundLine": "A refund of {amount} has been issued to your card. It usually appears within 5 to 10 working days.",
+      "cancelNotAllowed": "This booking can no longer be cancelled online. Please write to us.",
+      "cancelError": "We could not cancel the booking. Please try again, or write to us.",
+      "contact": "Questions? Reply to your confirmation email or write to {email}."
     }
   }
 }

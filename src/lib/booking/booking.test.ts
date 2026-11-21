@@ -29,7 +29,7 @@ const config: BookingConfig = bookingConfigSchema.parse({
   maxAdvanceMonths: 18,
   maxNights: 28,
   holdMinutes: 15,
-  payment: { mode: "deposit", depositPercent: 30, balanceDaysBeforeArrival: 30, securityDeposit: 500 },
+  payment: { mode: "deposit", depositPercent: 30, balanceDaysBeforeArrival: 30, securityDeposit: 500, securityDepositReleaseDays: 2 },
   cancellation: [
     { daysBefore: 60, refundPercent: 100 },
     { daysBefore: 30, refundPercent: 50 },
@@ -72,7 +72,14 @@ describe("pricing", () => {
     expect(q.subtotalCents).toBe(243000);
     expect(q.lineItems).toEqual([{ id: "climate", label: { en: "Climate fee", el: "Τέλος" }, cents: 4000, includedInTotal: true }]);
     expect(q.totalCents).toBe(247000);
-    expect(q.payment).toEqual({ mode: "deposit", depositCents: 74100, balanceCents: 172900 });
+    expect(q.payment).toEqual({ mode: "deposit", depositCents: 74100, balanceCents: 172900, balanceDueDate: "2027-05-16" });
+  });
+
+  it("charges in full when the balance would already be due", () => {
+    const late = quoteStay(config, { checkIn: "2027-06-15", checkOut: "2027-06-20", guests: 2 }, "2027-05-20");
+    expect(late.payment).toEqual({ mode: "full", depositCents: late.totalCents, balanceCents: 0, balanceDueDate: null });
+    const early = quoteStay(config, { checkIn: "2027-06-15", checkOut: "2027-06-20", guests: 2 }, "2027-05-15");
+    expect(early.payment.mode).toBe("deposit");
   });
 
   it("applies the largest long-stay discount to accommodation only", () => {

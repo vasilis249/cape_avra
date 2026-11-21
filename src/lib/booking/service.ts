@@ -38,7 +38,7 @@ export async function holdStay(stay: StayInput, locale: "en" | "el"): Promise<Ho
   const problem = checkStay(config, nightsFromRanges(ranges), stay, today);
   if (problem) return { ok: false, problem };
 
-  const quote = quoteStay(config, stay);
+  const quote = quoteStay(config, stay, today);
   const token = newToken();
   // a reference collision is astronomically unlikely, but retry once rather than fail
   for (let attempt = 0; attempt < 2; attempt++) {

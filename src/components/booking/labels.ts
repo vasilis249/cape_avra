@@ -54,3 +54,21 @@ export async function bookingLabels() {
   };
 }
 export type BookingLabels = Awaited<ReturnType<typeof bookingLabels>>;
+
+/** Strings for <PaymentStep>. */
+export async function paymentLabels(opts: { submit: string; note: string | null; test: boolean }) {
+  const t = await getTranslations("booking.checkout");
+  return {
+    title: t("paymentTitle"),
+    details: t("paymentDetails"),
+    submit: opts.test ? t("payTest") : opts.submit,
+    processing: t("processing"),
+    securePayment: t("securePayment"),
+    note: opts.note,
+    testNotice: opts.test ? t("testNotice") : null,
+    testDecline: t("payTestDecline"),
+    failed: t("paymentFailed"),
+    loading: t("loadingPayment"),
+    loadError: t("paymentLoadError"),
+  };
+}

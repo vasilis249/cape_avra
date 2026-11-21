@@ -95,7 +95,7 @@ export function BookingWidget({ locale, labels }: { locale: "en" | "el"; labels:
   const inRange = (d: ISODate) => !!checkIn && !!rangeEnd && d > checkIn && d < rangeEnd;
 
   const problem: StayProblem | null = checkIn && checkOut ? checkStay(config, unavailable, { checkIn, checkOut, guests }, today) : null;
-  const quote = checkIn && checkOut && !problem ? quoteStay(config, { checkIn, checkOut, guests }) : null;
+  const quote = checkIn && checkOut && !problem ? quoteStay(config, { checkIn, checkOut, guests }, today) : null;
 
   const problemText = (p: StayProblem | { code: string; [k: string]: unknown }): string => {
     const tpl = labels.problems[p.code] ?? labels.problems.invalid;

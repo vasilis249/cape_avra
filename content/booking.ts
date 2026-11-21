@@ -51,7 +51,7 @@ const seed: BookingConfig = {
   maxAdvanceMonths: 18,
   maxNights: 28,
   holdMinutes: 15,
-  payment: { mode: "deposit", depositPercent: 30, balanceDaysBeforeArrival: 30, securityDeposit: 500 },
+  payment: { mode: "deposit", depositPercent: 30, balanceDaysBeforeArrival: 30, securityDeposit: 500, securityDepositReleaseDays: 2 },
   cancellation: [
     { daysBefore: 60, refundPercent: 100 },
     { daysBefore: 30, refundPercent: 50 },

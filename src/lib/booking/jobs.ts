@@ -3,7 +3,10 @@ import { loadBookingConfig } from "./config";
 import { addDays, todayIn } from "./dates";
 import { sendPreArrivalEmail, sendReviewEmail } from "./emails";
 import { parseICal } from "./ical";
-import { getBookingStore } from "./store";
+import { getBookingStore, type Reservation } from "./store";
+import { paymentDeps } from "@/lib/payments/deps";
+import { PaymentsUnavailableError } from "@/lib/payments/provider";
+import { cancelAbandoned, chargeBalances, manageSecurityHolds } from "@/lib/payments/service";
 
 /**
  * External calendars to import, from env ICAL_FEEDS, e.g.
@@ -45,33 +48,42 @@ export async function syncCalendars(): Promise<SyncResult[]> {
   return results;
 }
 
-/** Daily housekeeping: release expired holds, pre-arrival and review emails. */
+/** Daily housekeeping: holds, payments (balances, security deposits), pre-arrival and review emails. */
 export async function runDaily(now = new Date()) {
   const config = await loadBookingConfig();
   const store = getBookingStore();
   const today = todayIn(config.timeZone, now);
   const expired = await store.expireHolds();
 
+  let payments: Record<string, unknown> = { skipped: "no payment provider" };
+  try {
+    const deps = await paymentDeps();
+    payments = {
+      abandonedCancelled: await cancelAbandoned(deps),
+      balances: await chargeBalances(deps, today),
+      securityDeposits: await manageSecurityHolds(deps, today),
+    };
+  } catch (e) {
+    if (!(e instanceof PaymentsUnavailableError)) throw e;
+  }
+
   const sent = { preArrival: 0, review: 0, failed: 0 };
-  for (const r of await store.dueForEmail("preArrival", addDays(today, config.emails.preArrivalDaysBefore))) {
+  const send = async (r: Reservation, kind: "preArrival" | "review", fn: () => Promise<void>) => {
+    if (!(await store.claimEmail(r.id, kind))) return; // another run is sending it
     try {
-      await sendPreArrivalEmail(r, config);
-      await store.markEmailSent(r.id, "preArrival");
-      sent.preArrival++;
+      await fn();
+      sent[kind]++;
     } catch (e) {
       sent.failed++;
-      console.error(`[daily] pre-arrival email for ${r.ref} failed`, e);
+      await store.releaseEmail(r.id, kind);
+      console.error(`[daily] ${kind} email for ${r.ref} failed`, e);
     }
+  };
+  for (const r of await store.dueForEmail("preArrival", addDays(today, config.emails.preArrivalDaysBefore))) {
+    await send(r, "preArrival", () => sendPreArrivalEmail(r, config));
   }
   for (const r of await store.dueForEmail("review", addDays(today, -config.emails.reviewDaysAfter))) {
-    try {
-      await sendReviewEmail(r);
-      await store.markEmailSent(r.id, "review");
-      sent.review++;
-    } catch (e) {
-      sent.failed++;
-      console.error(`[daily] review email for ${r.ref} failed`, e);
-    }
+    await send(r, "review", () => sendReviewEmail(r));
   }
-  return { today, expiredHolds: expired, emails: sent };
+  return { today, expiredHolds: expired, payments, emails: sent };
 }

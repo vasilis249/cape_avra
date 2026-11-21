@@ -16,13 +16,8 @@ export type GuestDetails = {
   message?: string;
   marketing?: boolean;
 };
-export type PaymentRecord = {
-  provider: string;
-  status: "paid" | "deposit_paid" | "pending" | "failed" | "refunded" | "test";
-  paidCents: number;
-  reference?: string;
-  [k: string]: unknown;
-};
+export type Cancellation = { by: "guest" | "owner" | "system"; at: string; refundPercent: number; refundCents: number; reason?: string };
+
 export type Reservation = {
   id: string;
   ref: string;
@@ -37,7 +32,6 @@ export type Reservation = {
   totalCents: number;
   quote: Quote;
   guest: GuestDetails | null;
-  payment: PaymentRecord | null;
   expiresAt: string | null;
   createdAt: string;
   confirmedAt: string | null;
@@ -45,7 +39,30 @@ export type Reservation = {
   confirmationSentAt: string | null;
   preArrivalSentAt: string | null;
   reviewSentAt: string | null;
+  providerCustomerId: string | null;
+  paymentMethodId: string | null;
+  balanceDueDate: ISODate | null;
+  cancellation: Cancellation | null;
+  cancellationSentAt: string | null;
 };
+
+export type PaymentKind = "deposit" | "full" | "balance" | "security_deposit";
+export type PaymentStatus = "pending" | "succeeded" | "failed" | "canceled" | "authorized" | "captured";
+export type Payment = {
+  id: string;
+  reservationId: string;
+  kind: PaymentKind;
+  provider: string;
+  providerRef: string;
+  amountCents: number;
+  currency: string;
+  status: PaymentStatus;
+  refundedCents: number;
+  failure: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type BlockedRange = { start: ISODate; end: ISODate; source: string };
 export type HoldInput = {
   ref: string;
@@ -57,7 +74,7 @@ export type HoldInput = {
   quote: Quote;
   holdMinutes: number;
 };
-export type EmailKind = "confirmation" | "preArrival" | "review";
+export type EmailKind = "confirmation" | "preArrival" | "review" | "cancellation";
 
 export interface BookingStore {
   /** confirmed bookings, active holds and calendar blocks overlapping [from, to) */
@@ -65,17 +82,48 @@ export interface BookingStore {
   /** null = dates no longer available */
   createHold(input: HoldInput): Promise<Reservation | null>;
   getByRef(ref: string): Promise<Reservation | null>;
-  /** hold → confirmed, only while the hold is still active; null = expired/taken */
-  confirm(id: string, guest: GuestDetails, payment: PaymentRecord): Promise<Reservation | null>;
-  /** release a hold early (e.g. payment failed) */
+  getById(id: string): Promise<Reservation | null>;
+  /** guest details entered at checkout; extends an active hold by `extendMinutes` (payment in progress) */
+  saveGuest(id: string, guest: GuestDetails, extendMinutes: number): Promise<Reservation | null>;
+  setPaymentProfile(id: string, profile: { customerId?: string | null; paymentMethodId?: string | null }): Promise<void>;
+  /** first successful payment → confirmed (also late, if the dates are still free); null = dates taken */
+  confirmPaid(id: string): Promise<Reservation | null>;
+  cancel(id: string, cancellation: Cancellation): Promise<Reservation | null>;
+  /** release a hold early */
   releaseHold(id: string): Promise<void>;
   expireHolds(): Promise<number>;
+
+  createPayment(p: Omit<Payment, "id" | "createdAt" | "updatedAt" | "refundedCents" | "failure"> & { failure?: string | null }): Promise<Payment>;
+  getPayment(providerRef: string): Promise<Payment | null>;
+  listPayments(reservationId: string): Promise<Payment[]>;
+  updatePayment(providerRef: string, patch: Partial<Pick<Payment, "status" | "refundedCents" | "failure">>): Promise<Payment | null>;
+  /** atomic status change: only applies (and returns the row) when the current status is in `from` */
+  transitionPayment(providerRef: string, from: PaymentStatus[], patch: Partial<Pick<Payment, "status" | "failure">>): Promise<Payment | null>;
+
+  /** webhook idempotency: records the event; false if it was already processed */
+  recordEvent(id: string, provider: string, type: string): Promise<boolean>;
+  markEventProcessed(id: string): Promise<void>;
+
   replaceBlocks(source: string, events: ICalEvent[]): Promise<number>;
   /** what we publish in our own iCal feed: direct bookings + manual blocks (never re-export imports) */
   exportEvents(): Promise<ICalEvent[]>;
-  /** confirmed stays arriving on `checkIn` (pre-arrival) or that left on `checkOut` (review) without that email yet */
   dueForEmail(kind: "preArrival" | "review", date: ISODate): Promise<Reservation[]>;
   markEmailSent(id: string, kind: EmailKind): Promise<void>;
+  /** atomically mark an email as sent; false if another process already did (so it goes out once) */
+  claimEmail(id: string, kind: EmailKind): Promise<boolean>;
+  /** undo a claim when sending failed, so a later run retries */
+  releaseEmail(id: string, kind: EmailKind): Promise<void>;
+  /** confirmed stays whose balance is due on/before `date` and not yet paid or attempted */
+  balancesDue(date: ISODate): Promise<Reservation[]>;
+  /**
+   * confirmed stays in their security-deposit window (check-in day → check-out + releaseDays) with a
+   * saved card and no live authorisation (expired authorisations, which cards drop after ~7 days, are re-placed)
+   */
+  securityHoldsToPlace(today: ISODate, releaseDays: number): Promise<Reservation[]>;
+  /** authorised security deposits whose window ended, or whose stay was cancelled */
+  securityHoldsToRelease(today: ISODate, releaseDays: number): Promise<Payment[]>;
+  /** unpaid (pending/failed) checkout payments of holds that have expired, to cancel at the provider */
+  abandonedPayments(): Promise<Payment[]>;
   loadConfig(): Promise<unknown | null>;
 }
 
@@ -86,8 +134,9 @@ export class StoreUnavailableError extends Error {}
 type Row = Record<string, unknown>;
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : v == null ? null : String(v));
 const day = (v: unknown): ISODate => (v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10));
+const dayOrNull = (v: unknown) => (v == null ? null : day(v));
 
-function fromRow(r: Row): Reservation {
+function resFromRow(r: Row): Reservation {
   return {
     id: String(r.id),
     ref: String(r.ref),
@@ -102,7 +151,6 @@ function fromRow(r: Row): Reservation {
     totalCents: Number(r.total_cents),
     quote: r.quote as Quote,
     guest: (r.guest as GuestDetails) ?? null,
-    payment: (r.payment as PaymentRecord) ?? null,
     expiresAt: iso(r.expires_at),
     createdAt: iso(r.created_at)!,
     confirmedAt: iso(r.confirmed_at),
@@ -110,10 +158,38 @@ function fromRow(r: Row): Reservation {
     confirmationSentAt: iso(r.confirmation_sent_at),
     preArrivalSentAt: iso(r.pre_arrival_sent_at),
     reviewSentAt: iso(r.review_sent_at),
+    providerCustomerId: (r.provider_customer_id as string) ?? null,
+    paymentMethodId: (r.payment_method_id as string) ?? null,
+    balanceDueDate: dayOrNull(r.balance_due_date),
+    cancellation: (r.cancellation as Cancellation) ?? null,
+    cancellationSentAt: iso(r.cancellation_sent_at),
+  };
+}
+
+function payFromRow(r: Row): Payment {
+  return {
+    id: String(r.id),
+    reservationId: String(r.reservation_id),
+    kind: r.kind as PaymentKind,
+    provider: String(r.provider),
+    providerRef: String(r.provider_ref),
+    amountCents: Number(r.amount_cents),
+    currency: String(r.currency),
+    status: r.status as PaymentStatus,
+    refundedCents: Number(r.refunded_cents),
+    failure: (r.failure as string) ?? null,
+    createdAt: iso(r.created_at)!,
+    updatedAt: iso(r.updated_at)!,
   };
 }
 
 const globalForPg = globalThis as unknown as { __capeSql?: postgres.Sql };
+const EMAIL_COLUMN: Record<EmailKind, string> = {
+  confirmation: "confirmation_sent_at",
+  preArrival: "pre_arrival_sent_at",
+  review: "review_sent_at",
+  cancellation: "cancellation_sent_at",
+};
 
 class PostgresStore implements BookingStore {
   private sql: postgres.Sql;
@@ -121,6 +197,7 @@ class PostgresStore implements BookingStore {
     // prepare:false → works with Supabase's transaction pooler (serverless-friendly)
     this.sql = globalForPg.__capeSql ??= postgres(url, { prepare: false, max: 3, idle_timeout: 20, connect_timeout: 10 });
   }
+  private json = (v: unknown) => this.sql.json(v as never);
 
   async blockedRanges(from: ISODate, to: ISODate) {
     const rows = await this.sql`
@@ -137,8 +214,9 @@ class PostgresStore implements BookingStore {
     try {
       const [row] = await this.sql`
         select * from create_hold(${i.ref}, ${i.tokenHash}, ${i.checkIn}, ${i.checkOut}, ${i.guests},
-                                  ${i.locale}, ${i.quote.totalCents}, ${this.sql.json(i.quote as never)}, ${i.holdMinutes})`;
-      return fromRow(row);
+                                  ${i.locale}, ${i.quote.totalCents}, ${this.json(i.quote)}, ${i.holdMinutes})`;
+      if (i.quote.payment.balanceDueDate) await this.sql`update reservations set balance_due_date = ${i.quote.payment.balanceDueDate} where id = ${row.id}`;
+      return resFromRow({ ...row, balance_due_date: i.quote.payment.balanceDueDate });
     } catch (e) {
       if (e instanceof Error && e.message === "unavailable") return null;
       throw e;
@@ -147,17 +225,42 @@ class PostgresStore implements BookingStore {
 
   async getByRef(ref: string) {
     const [row] = await this.sql`select * from reservations where ref = ${ref}`;
-    return row ? fromRow(row) : null;
+    return row ? resFromRow(row) : null;
+  }
+  async getById(id: string) {
+    const [row] = await this.sql`select * from reservations where id = ${id}`;
+    return row ? resFromRow(row) : null;
   }
 
-  async confirm(id: string, guest: GuestDetails, payment: PaymentRecord) {
+  async saveGuest(id: string, guest: GuestDetails, extendMinutes: number) {
     const [row] = await this.sql`
       update reservations
-         set status = 'confirmed', confirmed_at = now(), expires_at = null,
-             guest = ${this.sql.json(guest as never)}, payment = ${this.sql.json(payment as never)}
+         set guest = ${this.json(guest)},
+             expires_at = greatest(expires_at, now() + make_interval(mins => ${extendMinutes}))
        where id = ${id} and status = 'hold' and expires_at > now()
        returning *`;
-    return row ? fromRow(row) : null;
+    return row ? resFromRow(row) : null;
+  }
+
+  async setPaymentProfile(id: string, p: { customerId?: string | null; paymentMethodId?: string | null }) {
+    await this.sql`
+      update reservations
+         set provider_customer_id = coalesce(${p.customerId ?? null}, provider_customer_id),
+             payment_method_id = coalesce(${p.paymentMethodId ?? null}, payment_method_id)
+       where id = ${id}`;
+  }
+
+  async confirmPaid(id: string) {
+    const [row] = await this.sql`select * from confirm_paid_reservation(${id})`;
+    return row?.id ? resFromRow(row) : null;
+  }
+
+  async cancel(id: string, c: Cancellation) {
+    const [row] = await this.sql`
+      update reservations set status = 'cancelled', cancelled_at = now(), expires_at = null, cancellation = ${this.json(c)}
+       where id = ${id} and status in ('hold', 'confirmed', 'expired')
+       returning *`;
+    return row ? resFromRow(row) : null;
   }
 
   async releaseHold(id: string) {
@@ -169,8 +272,57 @@ class PostgresStore implements BookingStore {
     return Number(r.n);
   }
 
+  async createPayment(p: Parameters<BookingStore["createPayment"]>[0]) {
+    const [row] = await this.sql`
+      insert into payments (reservation_id, kind, provider, provider_ref, amount_cents, currency, status, failure)
+      values (${p.reservationId}, ${p.kind}, ${p.provider}, ${p.providerRef}, ${p.amountCents}, ${p.currency}, ${p.status}, ${p.failure ?? null})
+      returning *`;
+    return payFromRow(row);
+  }
+  async getPayment(providerRef: string) {
+    const [row] = await this.sql`select * from payments where provider_ref = ${providerRef}`;
+    return row ? payFromRow(row) : null;
+  }
+  async listPayments(reservationId: string) {
+    const rows = await this.sql`select * from payments where reservation_id = ${reservationId} order by created_at`;
+    return rows.map(payFromRow);
+  }
+  async updatePayment(providerRef: string, patch: Partial<Pick<Payment, "status" | "refundedCents" | "failure">>) {
+    const [row] = await this.sql`
+      update payments set
+        status = coalesce(${patch.status ?? null}, status),
+        refunded_cents = coalesce(${patch.refundedCents ?? null}, refunded_cents),
+        failure = case when ${patch.failure === undefined} then failure else ${patch.failure ?? null} end,
+        updated_at = now()
+      where provider_ref = ${providerRef}
+      returning *`;
+    return row ? payFromRow(row) : null;
+  }
+
+  async transitionPayment(providerRef: string, from: PaymentStatus[], patch: Partial<Pick<Payment, "status" | "failure">>) {
+    const [row] = await this.sql`
+      update payments set
+        status = coalesce(${patch.status ?? null}, status),
+        failure = case when ${patch.failure === undefined} then failure else ${patch.failure ?? null} end,
+        updated_at = now()
+      where provider_ref = ${providerRef} and status = any(${from})
+      returning *`;
+    return row ? payFromRow(row) : null;
+  }
+
+  async recordEvent(id: string, provider: string, type: string) {
+    const [row] = await this.sql`
+      insert into payment_events (id, provider, type) values (${id}, ${provider}, ${type})
+      on conflict (id) do update set type = excluded.type
+      returning processed_at`;
+    return row.processed_at == null;
+  }
+  async markEventProcessed(id: string) {
+    await this.sql`update payment_events set processed_at = now() where id = ${id}`;
+  }
+
   async replaceBlocks(source: string, events: ICalEvent[]) {
-    const [r] = await this.sql`select replace_calendar_blocks(${source}, ${this.sql.json(events as never)}) as n`;
+    const [r] = await this.sql`select replace_calendar_blocks(${source}, ${this.json(events)}) as n`;
     return Number(r.n);
   }
 
@@ -189,12 +341,55 @@ class PostgresStore implements BookingStore {
       kind === "preArrival"
         ? await this.sql`select * from reservations where status = 'confirmed' and check_in = ${date} and pre_arrival_sent_at is null`
         : await this.sql`select * from reservations where status = 'confirmed' and check_out = ${date} and review_sent_at is null`;
-    return rows.map(fromRow);
+    return rows.map(resFromRow);
   }
 
   async markEmailSent(id: string, kind: EmailKind) {
-    const col = { confirmation: "confirmation_sent_at", preArrival: "pre_arrival_sent_at", review: "review_sent_at" }[kind];
-    await this.sql`update reservations set ${this.sql(col)} = now() where id = ${id}`;
+    await this.sql`update reservations set ${this.sql(EMAIL_COLUMN[kind])} = now() where id = ${id}`;
+  }
+
+  async claimEmail(id: string, kind: EmailKind) {
+    const col = this.sql(EMAIL_COLUMN[kind]);
+    const rows = await this.sql`update reservations set ${col} = now() where id = ${id} and ${col} is null returning id`;
+    return rows.length === 1;
+  }
+  async releaseEmail(id: string, kind: EmailKind) {
+    await this.sql`update reservations set ${this.sql(EMAIL_COLUMN[kind])} = null where id = ${id}`;
+  }
+
+  async balancesDue(date: ISODate) {
+    const rows = await this.sql`
+      select r.* from reservations r
+       where r.status = 'confirmed' and r.balance_due_date is not null and r.balance_due_date <= ${date}
+         and r.check_in > ${date}
+         and not exists (select 1 from payments p where p.reservation_id = r.id and p.kind = 'balance'
+                          and p.status in ('pending', 'succeeded', 'failed'))`;
+    return rows.map(resFromRow);
+  }
+
+  async securityHoldsToPlace(today: ISODate, releaseDays: number) {
+    const rows = await this.sql`
+      select r.* from reservations r
+       where r.status = 'confirmed' and r.payment_method_id is not null
+         and r.check_in <= ${today} and r.check_out + ${releaseDays}::int > ${today}::date
+         and not exists (select 1 from payments p where p.reservation_id = r.id and p.kind = 'security_deposit'
+                          and p.status in ('pending', 'authorized', 'captured', 'failed'))`;
+    return rows.map(resFromRow);
+  }
+
+  async securityHoldsToRelease(today: ISODate, releaseDays: number) {
+    const rows = await this.sql`
+      select p.* from payments p join reservations r on r.id = p.reservation_id
+       where p.kind = 'security_deposit' and p.status = 'authorized'
+         and (r.check_out + ${releaseDays}::int <= ${today}::date or r.status = 'cancelled')`;
+    return rows.map(payFromRow);
+  }
+
+  async abandonedPayments() {
+    const rows = await this.sql`
+      select p.* from payments p join reservations r on r.id = p.reservation_id
+       where p.status in ('pending', 'failed') and p.kind in ('deposit', 'full') and r.status = 'expired'`;
+    return rows.map(payFromRow);
   }
 
   async loadConfig() {
@@ -205,48 +400,58 @@ class PostgresStore implements BookingStore {
 
 /* ------------------------------------------------------ local file (dev only) */
 
-type FileDb = { reservations: Reservation[]; blocks: (BlockedRange & { uid: string; summary: string })[] };
-const FILE = path.join(process.cwd(), ".data/booking.json");
+type FileDb = {
+  reservations: Reservation[];
+  blocks: (BlockedRange & { uid: string; summary: string })[];
+  payments: Payment[];
+  events: { id: string; provider: string; type: string; processedAt: string | null }[];
+};
+
 let lock: Promise<unknown> = Promise.resolve();
 
-/** Same semantics as Postgres, for running locally without a database. Single process only. */
-class FileStore implements BookingStore {
+/** Same semantics as Postgres, for running locally (and in tests) without a database. Single process only. */
+export class FileStore implements BookingStore {
+  constructor(private file = process.env.BOOKING_FILE ?? path.join(process.cwd(), ".data/booking.json")) {}
+
   private async tx<T>(fn: (db: FileDb) => T | Promise<T>, write = false): Promise<T> {
     const run = lock.then(async () => {
-      let db: FileDb = { reservations: [], blocks: [] };
+      let db: FileDb = { reservations: [], blocks: [], payments: [], events: [] };
       try {
-        db = JSON.parse(await readFile(FILE, "utf8"));
+        db = { ...db, ...JSON.parse(await readFile(this.file, "utf8")) };
       } catch {}
       const out = await fn(db);
       if (write) {
-        await mkdir(path.dirname(FILE), { recursive: true });
-        await writeFile(FILE, JSON.stringify(db, null, 2));
+        await mkdir(path.dirname(this.file), { recursive: true });
+        await writeFile(this.file, JSON.stringify(db, null, 2));
       }
-      return out;
+      return structuredClone(out);
     });
     lock = run.catch(() => {});
     return run;
   }
-  private active = (r: Reservation) => r.status === "confirmed" || (r.status === "hold" && r.expiresAt! > new Date().toISOString());
+  private now = () => new Date().toISOString();
+  private active = (r: Reservation) => r.status === "confirmed" || (r.status === "hold" && r.expiresAt! > this.now());
   private overlaps = (a: { start: string; end: string }, b: { start: string; end: string }) => a.start < b.end && b.start < a.end;
+  private range = (r: Reservation) => ({ start: r.checkIn, end: r.checkOut });
 
   blockedRanges(from: ISODate, to: ISODate) {
-    return this.tx((db) => [
-      ...db.reservations.filter(this.active).map((r) => ({ start: r.checkIn, end: r.checkOut, source: "reservation" })),
-      ...db.blocks.map((b) => ({ start: b.start, end: b.end, source: b.source })),
-    ].filter((r) => this.overlaps(r, { start: from, end: to })));
+    return this.tx((db) =>
+      [
+        ...db.reservations.filter(this.active).map((r) => ({ start: r.checkIn, end: r.checkOut, source: "reservation" })),
+        ...db.blocks.map((b) => ({ start: b.start, end: b.end, source: b.source })),
+      ].filter((r) => this.overlaps(r, { start: from, end: to })),
+    );
   }
   createHold(i: HoldInput) {
     return this.tx((db) => {
       const want = { start: i.checkIn, end: i.checkOut };
-      const now = new Date();
       db.reservations.forEach((r) => {
-        if (r.status === "hold" && r.expiresAt! <= now.toISOString()) r.status = "expired";
+        if (r.status === "hold" && r.expiresAt! <= this.now()) r.status = "expired";
       });
       const taken =
-        db.reservations.some((r) => this.active(r) && this.overlaps({ start: r.checkIn, end: r.checkOut }, want)) ||
-        db.blocks.some((b) => this.overlaps(b, want));
+        db.reservations.some((r) => this.active(r) && this.overlaps(this.range(r), want)) || db.blocks.some((b) => this.overlaps(b, want));
       if (taken) return null;
+      const now = new Date();
       const r: Reservation = {
         id: crypto.randomUUID(),
         ref: i.ref,
@@ -261,7 +466,6 @@ class FileStore implements BookingStore {
         totalCents: i.quote.totalCents,
         quote: i.quote,
         guest: null,
-        payment: null,
         expiresAt: new Date(now.getTime() + i.holdMinutes * 60_000).toISOString(),
         createdAt: now.toISOString(),
         confirmedAt: null,
@@ -269,6 +473,11 @@ class FileStore implements BookingStore {
         confirmationSentAt: null,
         preArrivalSentAt: null,
         reviewSentAt: null,
+        providerCustomerId: null,
+        paymentMethodId: null,
+        balanceDueDate: i.quote.payment.balanceDueDate,
+        cancellation: null,
+        cancellationSentAt: null,
       };
       db.reservations.push(r);
       return r;
@@ -277,11 +486,48 @@ class FileStore implements BookingStore {
   getByRef(ref: string) {
     return this.tx((db) => db.reservations.find((r) => r.ref === ref) ?? null);
   }
-  confirm(id: string, guest: GuestDetails, payment: PaymentRecord) {
+  getById(id: string) {
+    return this.tx((db) => db.reservations.find((r) => r.id === id) ?? null);
+  }
+  saveGuest(id: string, guest: GuestDetails, extendMinutes: number) {
     return this.tx((db) => {
       const r = db.reservations.find((x) => x.id === id);
-      if (!r || r.status !== "hold" || r.expiresAt! <= new Date().toISOString()) return null;
-      Object.assign(r, { status: "confirmed", confirmedAt: new Date().toISOString(), expiresAt: null, guest, payment });
+      if (!r || r.status !== "hold" || r.expiresAt! <= this.now()) return null;
+      r.guest = guest;
+      const ext = new Date(Date.now() + extendMinutes * 60_000).toISOString();
+      if (ext > r.expiresAt!) r.expiresAt = ext;
+      return r;
+    }, true);
+  }
+  setPaymentProfile(id: string, p: { customerId?: string | null; paymentMethodId?: string | null }) {
+    return this.tx((db) => {
+      const r = db.reservations.find((x) => x.id === id);
+      if (!r) return;
+      if (p.customerId) r.providerCustomerId = p.customerId;
+      if (p.paymentMethodId) r.paymentMethodId = p.paymentMethodId;
+    }, true);
+  }
+  confirmPaid(id: string) {
+    return this.tx((db) => {
+      const r = db.reservations.find((x) => x.id === id);
+      if (!r || !["hold", "expired", "confirmed"].includes(r.status)) return null;
+      if (r.status !== "confirmed") {
+        const clash =
+          db.reservations.some((o) => o.id !== r.id && this.active(o) && this.overlaps(this.range(o), this.range(r))) ||
+          db.blocks.some((b) => this.overlaps(b, this.range(r)));
+        if (clash) return null;
+        r.status = "confirmed";
+        r.confirmedAt = this.now();
+        r.expiresAt = null;
+      }
+      return r;
+    }, true);
+  }
+  cancel(id: string, c: Cancellation) {
+    return this.tx((db) => {
+      const r = db.reservations.find((x) => x.id === id);
+      if (!r || r.status === "cancelled") return null;
+      Object.assign(r, { status: "cancelled", cancelledAt: this.now(), expiresAt: null, cancellation: c });
       return r;
     }, true);
   }
@@ -295,12 +541,58 @@ class FileStore implements BookingStore {
     return this.tx((db) => {
       let n = 0;
       for (const r of db.reservations) {
-        if (r.status === "hold" && r.expiresAt! <= new Date().toISOString()) {
+        if (r.status === "hold" && r.expiresAt! <= this.now()) {
           r.status = "expired";
           n++;
         }
       }
       return n;
+    }, true);
+  }
+  createPayment(p: Parameters<BookingStore["createPayment"]>[0]) {
+    return this.tx((db) => {
+      if (db.payments.some((x) => x.providerRef === p.providerRef)) throw new Error("duplicate provider_ref");
+      if (p.kind === "balance" && ["pending", "succeeded"].includes(p.status) && db.payments.some((x) => x.reservationId === p.reservationId && x.kind === "balance" && ["pending", "succeeded"].includes(x.status)))
+        throw new Error("a live balance payment already exists");
+      const row: Payment = { ...p, id: crypto.randomUUID(), refundedCents: 0, failure: p.failure ?? null, createdAt: this.now(), updatedAt: this.now() };
+      db.payments.push(row);
+      return row;
+    }, true);
+  }
+  getPayment(providerRef: string) {
+    return this.tx((db) => db.payments.find((p) => p.providerRef === providerRef) ?? null);
+  }
+  listPayments(reservationId: string) {
+    return this.tx((db) => db.payments.filter((p) => p.reservationId === reservationId));
+  }
+  updatePayment(providerRef: string, patch: Partial<Pick<Payment, "status" | "refundedCents" | "failure">>) {
+    return this.tx((db) => {
+      const p = db.payments.find((x) => x.providerRef === providerRef);
+      if (!p) return null;
+      Object.assign(p, Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)), { updatedAt: this.now() });
+      return p;
+    }, true);
+  }
+  transitionPayment(providerRef: string, from: PaymentStatus[], patch: Partial<Pick<Payment, "status" | "failure">>) {
+    return this.tx((db) => {
+      const p = db.payments.find((x) => x.providerRef === providerRef);
+      if (!p || !from.includes(p.status)) return null;
+      Object.assign(p, Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)), { updatedAt: this.now() });
+      return p;
+    }, true);
+  }
+  recordEvent(id: string, provider: string, type: string) {
+    return this.tx((db) => {
+      const e = db.events.find((x) => x.id === id);
+      if (e) return !e.processedAt;
+      db.events.push({ id, provider, type, processedAt: null });
+      return true;
+    }, true);
+  }
+  markEventProcessed(id: string) {
+    return this.tx((db) => {
+      const e = db.events.find((x) => x.id === id);
+      if (e) e.processedAt = this.now();
     }, true);
   }
   replaceBlocks(source: string, events: ICalEvent[]) {
@@ -311,7 +603,7 @@ class FileStore implements BookingStore {
     }, true);
   }
   exportEvents() {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = this.now().slice(0, 10);
     return this.tx((db) => [
       ...db.reservations
         .filter((r) => r.status === "confirmed" && r.checkOut >= today)
@@ -323,17 +615,74 @@ class FileStore implements BookingStore {
   }
   dueForEmail(kind: "preArrival" | "review", date: ISODate) {
     return this.tx((db) =>
-      db.reservations.filter((r) =>
-        r.status === "confirmed" && (kind === "preArrival" ? r.checkIn === date && !r.preArrivalSentAt : r.checkOut === date && !r.reviewSentAt),
+      db.reservations.filter(
+        (r) => r.status === "confirmed" && (kind === "preArrival" ? r.checkIn === date && !r.preArrivalSentAt : r.checkOut === date && !r.reviewSentAt),
       ),
     );
   }
+  private emailKey = (kind: EmailKind) =>
+    ({ confirmation: "confirmationSentAt", preArrival: "preArrivalSentAt", review: "reviewSentAt", cancellation: "cancellationSentAt" })[kind];
   markEmailSent(id: string, kind: EmailKind) {
-    const key = { confirmation: "confirmationSentAt", preArrival: "preArrivalSentAt", review: "reviewSentAt" }[kind] as keyof Reservation;
     return this.tx((db) => {
-      const r = db.reservations.find((x) => x.id === id);
-      if (r) (r as Record<string, unknown>)[key] = new Date().toISOString();
+      const r = db.reservations.find((x) => x.id === id) as Record<string, unknown> | undefined;
+      if (r) r[this.emailKey(kind)] = this.now();
     }, true);
+  }
+  claimEmail(id: string, kind: EmailKind) {
+    return this.tx((db) => {
+      const r = db.reservations.find((x) => x.id === id) as Record<string, unknown> | undefined;
+      if (!r || r[this.emailKey(kind)]) return false;
+      r[this.emailKey(kind)] = this.now();
+      return true;
+    }, true);
+  }
+  releaseEmail(id: string, kind: EmailKind) {
+    return this.tx((db) => {
+      const r = db.reservations.find((x) => x.id === id) as Record<string, unknown> | undefined;
+      if (r) r[this.emailKey(kind)] = null;
+    }, true);
+  }
+  balancesDue(date: ISODate) {
+    return this.tx((db) =>
+      db.reservations.filter(
+        (r) =>
+          r.status === "confirmed" &&
+          !!r.balanceDueDate &&
+          r.balanceDueDate <= date &&
+          r.checkIn > date &&
+          !db.payments.some((p) => p.reservationId === r.id && p.kind === "balance" && ["pending", "succeeded", "failed"].includes(p.status)),
+      ),
+    );
+  }
+  securityHoldsToPlace(today: ISODate, releaseDays: number) {
+    return this.tx((db) =>
+      db.reservations.filter(
+        (r) =>
+          r.status === "confirmed" &&
+          !!r.paymentMethodId &&
+          r.checkIn <= today &&
+          addDays(r.checkOut, releaseDays) > today &&
+          !db.payments.some(
+            (p) => p.reservationId === r.id && p.kind === "security_deposit" && ["pending", "authorized", "captured", "failed"].includes(p.status),
+          ),
+      ),
+    );
+  }
+  securityHoldsToRelease(today: ISODate, releaseDays: number) {
+    return this.tx((db) =>
+      db.payments.filter((p) => {
+        const r = db.reservations.find((x) => x.id === p.reservationId);
+        return p.kind === "security_deposit" && p.status === "authorized" && !!r && (addDays(r.checkOut, releaseDays) <= today || r.status === "cancelled");
+      }),
+    );
+  }
+  abandonedPayments() {
+    return this.tx((db) =>
+      db.payments.filter((p) => {
+        const r = db.reservations.find((x) => x.id === p.reservationId);
+        return (p.status === "pending" || p.status === "failed") && (p.kind === "deposit" || p.kind === "full") && r?.status === "expired";
+      }),
+    );
   }
   async loadConfig() {
     return null;
@@ -352,4 +701,3 @@ export function getBookingStore(): BookingStore {
 
 /** Window used by the calendar: today → maxAdvanceMonths ahead (+ a margin). */
 export const calendarWindow = (today: ISODate, months: number): [ISODate, ISODate] => [today, addDays(today, months * 31 + 7)];
-
