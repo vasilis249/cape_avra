@@ -27,6 +27,12 @@
       "contact": {
         "title": "Contact",
         "description": "Write to Cape Avra about the house, the area or your dates. We reply personally."
+      },
+      "checkout": {
+        "title": "Complete your booking"
+      },
+      "confirmation": {
+        "title": "Booking confirmed"
       }
     }
   },
@@ -55,7 +61,8 @@
     "discoverHouse": "Discover the house",
     "viewGallery": "View the gallery",
     "exploreLocation": "Explore the area",
-    "bookDirectShort": "{season} · Best price when you book direct"
+    "bookDirectShort": "{season} · Best price when you book direct",
+    "bookShort": "Book"
   },
   "home": {
     "hero": {
@@ -352,7 +359,8 @@
       "We reply personally with availability and the price for your stay.",
       "If you would like to go ahead, we confirm the booking directly with you."
     ],
-    "liveSoon": "Online booking with a live calendar is coming soon. Until then, send us your dates below."
+    "liveTitle": "Book your stay",
+    "liveLead": "Choose your dates to see availability and the full price. Book direct for the best price, with no platform fees."
   },
   "form": {
     "name": "Your name",
@@ -398,5 +406,127 @@
     "updated": "Last updated: {date}",
     "draftNote": "This text is a draft and is being reviewed."
   },
-  "soon": "This page arrives in the next phase of the build."
+  "soon": "This page arrives in the next phase of the build.",
+  "emails": {
+    "confirmation": {
+      "subject": "Your stay at Cape Avra is confirmed · {ref}",
+      "title": "Your stay is confirmed",
+      "intro": "Dear {name},\n\nthank you for booking Cape Avra. Here are the details of your stay. Keep this email: your reference is {ref}.",
+      "outro": "About {days} days before you arrive we will send you directions and everything you need for your arrival. If you have any questions, simply reply to this email.",
+      "testNote": "This booking was made with a test payment. No money was charged."
+    },
+    "preArrival": {
+      "subject": "Your stay at Cape Avra starts in {days} days",
+      "title": "See you soon at Cape Avra",
+      "intro": "Dear {name},\n\nyour stay begins on {date}. Here is what you need for your arrival.",
+      "noAddress": "We will send you the exact address and directions shortly.",
+      "outro": "If your plans or arrival time change, simply reply to this email."
+    },
+    "review": {
+      "subject": "Thank you for staying at Cape Avra",
+      "title": "Thank you",
+      "intro": "Dear {name},\n\nthank you for staying with us. We hope the house, the garden and the sea gave you the days you were hoping for.",
+      "ask": "If you have a moment, we would be grateful for a few words about your stay.",
+      "askReply": "If you have a moment, simply reply to this email with a few words about your stay. It helps us more than you know.",
+      "link": "Leave a review"
+    },
+    "rows": {
+      "reference": "Reference",
+      "arrival": "Arrival",
+      "departure": "Departure",
+      "guests": "Guests",
+      "nights": "Nights",
+      "total": "Total",
+      "paid": "Paid now",
+      "balance": "Balance",
+      "balanceDue": "{amount}, due on {date}",
+      "from": "from {time}",
+      "by": "by {time}",
+      "address": "Address",
+      "directions": "Directions",
+      "notes": "Good to know"
+    }
+  },
+  "booking": {
+    "calendarLabel": "Choose your dates",
+    "selectArrival": "Select your arrival date",
+    "selectDeparture": "Now select your departure date",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "clear": "Clear dates",
+    "guests": "Guests",
+    "arrival": "Arrival",
+    "departure": "Departure",
+    "nightOne": "1 night",
+    "nightOther": "{count} nights",
+    "legendAvailable": "Available",
+    "legendBooked": "Booked",
+    "legendNoArrival": "No arrival on this day",
+    "dayAvailable": "available",
+    "dayBooked": "booked",
+    "dayNoArrival": "no arrivals",
+    "dayUnavailable": "not available",
+    "daySelected": "selected",
+    "loading": "Loading availability…",
+    "loadError": "We could not load availability. Please try again, or write to us.",
+    "minNightsHint": "Minimum stay from this date: {count} nights.",
+    "checkInDaysHint": "In this season, arrivals are on {days}.",
+    "problems": {
+      "invalid": "Please choose an arrival and a departure date.",
+      "guests": "Choose between 1 and {max} guests.",
+      "tooSoon": "Please book at least {count} days ahead.",
+      "tooFar": "Bookings open up to {count} months ahead.",
+      "closed": "The house is closed for guests on {date}.",
+      "minNights": "The minimum stay for these dates is {count} nights.",
+      "maxNights": "The maximum stay is {count} nights. For longer stays, write to us.",
+      "checkInDay": "In this season, arrivals are on {days}.",
+      "unavailable": "Sorry, these dates are no longer available. Please choose others.",
+      "storeUnavailable": "Online booking is temporarily unavailable. Please write to us."
+    },
+    "summary": {
+      "title": "Your stay",
+      "nights": "{nights} × average {rate}",
+      "extraGuests": "Extra guests",
+      "cleaning": "Final cleaning",
+      "discount": "Long-stay discount ({percent}%)",
+      "total": "Total",
+      "deposit": "Due now ({percent}%)",
+      "full": "Due now",
+      "balance": "Balance, due by {date}",
+      "onArrival": "Payable on arrival",
+      "note": "No payment yet. You confirm the price at the next step.",
+      "continue": "Continue",
+      "holding": "Holding your dates…"
+    },
+    "checkout": {
+      "eyebrow": "Booking",
+      "title": "Complete your booking",
+      "heldFor": "We are holding these dates for you for {time}.",
+      "expired": "Your hold has expired, so the dates have been released. Please choose them again.",
+      "backToDates": "Choose dates",
+      "change": "Change dates",
+      "detailsTitle": "Your details",
+      "country": "Country of residence",
+      "arrivalTime": "Expected arrival time",
+      "message": "Anything we should know?",
+      "terms": "I accept the <terms>booking terms and cancellation policy</terms>.",
+      "termsError": "Please accept the booking terms.",
+      "cancellationTitle": "Cancellation",
+      "cancellationTier": "{days} days or more before arrival: {percent}% refund",
+      "cancellationLast": "Less than {days} days before arrival: {percent}% refund",
+      "pay": "Pay {amount} and confirm",
+      "payTest": "Confirm with a test payment",
+      "testNotice": "Test mode: no real payment is taken.",
+      "paymentsUnavailable": "Online payment is not available yet. Please write to us to confirm these dates.",
+      "processing": "Confirming…",
+      "notFound": "We could not find this booking. Please check the link, or write to us."
+    },
+    "confirmation": {
+      "eyebrow": "Confirmed",
+      "title": "Your stay is confirmed",
+      "lead": "Thank you, {name}. We have sent all the details to {email}.",
+      "reference": "Booking reference",
+      "next": "About {days} days before your arrival we will send you directions and everything you need."
+    }
+  }
 }

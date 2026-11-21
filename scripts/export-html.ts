@@ -42,7 +42,8 @@ const STATIC_FORM: Record<L, string> = {
 
 /** Every page: internal pathname × locale → rendered URL and static output folder. */
 type Route = { url: string; out: string; locale: L };
-const ROUTES: Route[] = Object.entries(routing.pathnames).flatMap(([, v]) =>
+// checkout / confirmation need the server and a guest's private link: not exported
+const ROUTES: Route[] = Object.entries(routing.pathnames).filter(([k]) => !k.startsWith("/book/")).flatMap(([, v]) =>
   LOCALES.map((l) => {
     const slug = typeof v === "string" ? v : v[l];
     const url = `/${l}${slug === "/" ? "" : slug}`;

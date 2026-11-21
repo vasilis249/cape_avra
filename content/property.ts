@@ -59,3 +59,20 @@ export const distances: { key: string; minutes: number | null; confirmed: boolea
 
 /** Outdoor features visible in photos / confirmed by the owner. */
 export const outdoorFeatures = ["garden", "pergola", "bbq", "seaView"] as const;
+
+/**
+ * Arrival details, sent ONLY to confirmed guests in the pre-arrival email
+ * (the public site shows an approximate area). TODO(owner): fill in.
+ */
+export const arrivalInfo: {
+  address: string | null;
+  mapsUrl: string | null;
+  notes: { en: string; el: string } | null;
+  /** e.g. a Google review link; null = we just ask guests to reply */
+  reviewUrl: string | null;
+} = {
+  address: null,
+  mapsUrl: null,
+  notes: null,
+  reviewUrl: null,
+};

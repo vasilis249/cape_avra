@@ -17,7 +17,7 @@ export async function SiteHeader({ variant = "solid" }: { variant?: "overlay" | 
     <HeaderClient
       variant={variant}
       nav={nav}
-      cta={{ href: "/book", label: isPreview ? t("cta.earlyBookingShort") : t("cta.checkAvailability") }}
+      cta={{ href: "/book", label: isPreview ? t("cta.earlyBookingShort") : t("cta.bookShort") }}
       labels={{
         menu: t("nav.menu"),
         close: t("nav.close"),

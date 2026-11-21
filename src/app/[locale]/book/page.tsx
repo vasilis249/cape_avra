@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { BookingWidget } from "@/components/booking/BookingWidget";
+import { bookingLabels } from "@/components/booking/labels";
 import { LeadForm } from "@/components/forms/LeadForm";
 import { leadFormLabels } from "@/components/forms/lead-form-labels";
 import { privacyConsentLabel } from "@/components/forms/PrivacyConsentLabel";
@@ -29,6 +31,20 @@ export default async function BookPage() {
   const season = siteConfig.earlyBookingSeason[locale];
   const steps = t.raw("steps") as string[];
 
+  if (!isPreview) {
+    return (
+      <>
+        <SiteHeader variant="solid" />
+        <main id="main">
+          <PageHeader eyebrow={season} title={t("liveTitle")} lead={t("liveLead")} />
+          <Container className="pb-24 lg:pb-32">
+            <BookingWidget locale={locale} labels={await bookingLabels()} />
+          </Container>
+        </main>
+      </>
+    );
+  }
+
   return (
     <>
       <SiteHeader variant="solid" />
@@ -56,7 +72,6 @@ export default async function BookPage() {
             <Photo id="blue-hour-agaves" fill sizes="(min-width: 1024px) 30vw, 100vw" className="mt-10 hidden aspect-[4/5] lg:block" />
           </aside>
           <div className="lg:col-span-7 lg:col-start-6">
-            {!isPreview && <p className="mb-8 border-l-2 border-dusk pl-4 text-ink-soft">{t("liveSoon")}</p>}
             <LeadForm
               kind="waitlist"
               locale={locale}

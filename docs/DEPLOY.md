@@ -29,6 +29,23 @@ Commercial sites need Vercel **Pro** (the free Hobby plan is for non-commercial 
 
 Without these variables the forms on Vercel tell visitors to email you instead (nothing is lost silently).
 
+### 2b. Booking engine (Phase 3)
+
+1. **SQL Editor** → run `supabase/migrations/0002_booking.sql` (reservations, calendar blocks, the
+   double-booking guard and the hold functions).
+2. **Connect → Transaction pooler** → copy the connection string → Vercel env `DATABASE_URL`
+   (replace `[YOUR-PASSWORD]`). Server only.
+3. `ICAL_EXPORT_TOKEN` = a long random string. Your calendar for Airbnb/Booking.com is then
+   `https://capeavra.com/api/ical/<ICAL_EXPORT_TOKEN>` (Airbnb: Calendar → Availability →
+   Connect calendars → Import; Booking.com: Rates & availability → Sync calendars).
+4. `ICAL_FEEDS` = the export links of Airbnb/Booking.com, as JSON:
+   `{"airbnb":"https://www.airbnb.com/calendar/ical/….ics?s=…","booking":"https://ical.booking.com/v1/export?t=…"}`
+5. `CRON_SECRET` = another long random string (Vercel uses it to call the scheduled jobs).
+6. Scheduled jobs are in `vercel.json`: calendar sync every 30 minutes (**needs Vercel Pro**; the free
+   plan allows once a day) and a daily job at 06:17 UTC (holds, pre-arrival and review emails).
+7. Switch the site to live booking with `SITE_MODE=live` (or `mode: "live"` in `content/site.config.ts`).
+   Until Stripe is connected (Phase 4), keep it in preview on production.
+
 ## 3. Resend (emails: notification to you + auto-reply to the guest)
 
 1. Create an account at [resend.com](https://resend.com) → **Domains** → add `capeavra.com` and add the DNS records it shows.

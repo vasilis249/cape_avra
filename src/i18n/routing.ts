@@ -16,6 +16,8 @@ export const routing = defineRouting({
     "/gallery": { en: "/gallery", el: "/fotografies" },
     "/location": { en: "/location", el: "/topothesia" },
     "/book": { en: "/book", el: "/kratisi" },
+    "/book/checkout": { en: "/book/checkout", el: "/kratisi/oloklirosi" },
+    "/book/confirmation": { en: "/book/confirmation", el: "/kratisi/epivevaiosi" },
     "/faq": { en: "/faq", el: "/syxnes-erotiseis" },
     "/contact": { en: "/contact", el: "/epikoinonia" },
     "/legal/privacy": { en: "/legal/privacy", el: "/nomika/aporrito" },

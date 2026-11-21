@@ -83,7 +83,8 @@ export function HeaderClient({ variant, nav, cta, labels, languageNames, wordmar
           <span className="w-9 shrink-0 lg:w-10">{monogram}</span>
           <span
             className={cn(
-              "w-36 transition-opacity duration-500 sm:w-44",
+              // 1024–1279px: monogram only, so the booking button always fits
+              "w-36 transition-opacity duration-500 sm:w-44 lg:max-xl:hidden",
               solid ? "opacity-100" : "pointer-events-none opacity-0",
             )}
           >
@@ -92,7 +93,7 @@ export function HeaderClient({ variant, nav, cta, labels, languageNames, wordmar
         </Link>
 
         <nav aria-label={labels.primary} className="hidden lg:block">
-          <ul className="flex items-center gap-8 text-[0.8125rem] tracking-[0.12em] uppercase">
+          <ul className="flex items-center gap-5 text-[0.8125rem] tracking-[0.12em] whitespace-nowrap uppercase xl:gap-8">
             {nav.map((item) => (
               <li key={item.href}>
                 <Link href={item.href} className="py-3 opacity-85 transition-opacity hover:opacity-100">
@@ -107,7 +108,7 @@ export function HeaderClient({ variant, nav, cta, labels, languageNames, wordmar
           <LanguageSwitcher label={labels.language} names={languageNames} className="max-sm:hidden" />
           <Link
             href={cta.href}
-            className={buttonClasses(solid ? "primary" : "outline-light", "sm", "max-lg:hidden")}
+            className={buttonClasses(solid ? "primary" : "outline-light", "sm", "whitespace-nowrap max-lg:hidden")}
           >
             {cta.label}
           </Link>

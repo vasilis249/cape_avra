@@ -7,7 +7,8 @@ const priority: Partial<Record<AppPathname, number>> = { "/": 1, "/book": 0.9, "
 
 /** Every page in every locale, each listing its translations (hreflang). */
 export default function sitemap(): MetadataRoute.Sitemap {
-  const hrefs = Object.keys(routing.pathnames) as AppPathname[];
+  // private, per-guest pages are never listed
+  const hrefs = (Object.keys(routing.pathnames) as AppPathname[]).filter((h) => !h.startsWith("/book/"));
   return hrefs.flatMap((href) =>
     routing.locales.map((locale) => ({
       url: siteUrl + getPathname({ href, locale }),
