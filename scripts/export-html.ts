@@ -85,6 +85,8 @@ async function buildCss(html: string): Promise<string> {
     }
     css += sheet;
   }
+  // fonts are inlined as large data URIs here, so "optional" would often give up and keep the fallback
+  css = css.replaceAll("font-display:optional", "font-display:swap");
   // next/font puts its CSS variables on classes of <html>; the export can't rely on them
   const htmlClasses = ($("html").attr("class") ?? "").split(/\s+/).filter(Boolean);
   const vars = htmlClasses
