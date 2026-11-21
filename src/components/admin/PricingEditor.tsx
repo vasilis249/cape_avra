@@ -31,7 +31,8 @@ export function PricingEditor({ initial, today }: { initial: Cfg; today: string 
       <input type="hidden" name="config" value={JSON.stringify(c)} />
 
       <Section title={P.seasons}>
-        <div className="overflow-x-auto">
+        {/* relative: visually hidden (absolute) inputs inside must not widen the page */}
+        <div className="relative overflow-x-auto">
           <table className="w-full min-w-[56rem] text-left text-[0.875rem]">
             <thead>
               <tr className="text-[0.75rem] text-ink-soft">
@@ -201,7 +202,7 @@ export function PricingEditor({ initial, today }: { initial: Cfg; today: string 
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <fieldset className="border border-limestone/60 bg-white p-5 sm:p-6">
+    <fieldset className="min-w-0 border border-limestone/60 bg-white p-5 sm:p-6">
       <legend className="px-2 text-[0.75rem] font-sans tracking-[0.14em] text-ink-soft uppercase">{title}</legend>
       {children}
     </fieldset>
@@ -257,7 +258,7 @@ function Weekdays({ name, value, anyLabel, onChange }: { name: string; value: nu
       {[1, 2, 3, 4, 5, 6, 0].map((d) => {
         const on = value?.includes(d) ?? false;
         return (
-          <label key={d} className={cn("cursor-pointer border px-1.5 py-0.5 text-[0.75rem]", on ? "border-ionian bg-ionian text-salt" : "border-limestone bg-white")}>
+          <label key={d} className={cn("relative cursor-pointer border px-1.5 py-0.5 text-[0.75rem]", on ? "border-ionian bg-ionian text-salt" : "border-limestone bg-white")}>
             <input
               type="checkbox"
               className="sr-only"

@@ -49,7 +49,7 @@ export function StatusBadge({ status }: { status: ReservationStatus }) {
 }
 
 export const table = {
-  wrap: "overflow-x-auto border border-limestone/60 bg-white",
+  wrap: "relative overflow-x-auto border border-limestone/60 bg-white",
   table: "w-full border-collapse text-left text-[0.875rem]",
   th: "border-b border-limestone/60 bg-sand/60 px-3 py-2 font-normal text-[0.75rem] tracking-[0.08em] text-ink-soft uppercase whitespace-nowrap",
   td: "border-b border-limestone/40 px-3 py-2 align-top",
