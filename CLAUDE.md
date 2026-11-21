@@ -14,8 +14,11 @@ before using an API from memory.
       cookie banner + consent-gated analytics, sitemap/robots, OG images, GitHub Pages static preview
       (Vercel deploy needs the owner's account: see docs/DEPLOY.md)
 - [x] **Phase 3**: booking engine (rules, pricing, holds, calendar, checkout with test payments),
-      iCal 2-way sync, cron jobs, booking emails ← *done, awaiting owner review*
-- [ ] Phase 4: Stripe (test mode), webhooks, refunds
+      iCal 2-way sync, cron jobs, booking emails
+- [x] **Phase 4**: payments behind `PaymentProvider` (simulated "test" + Stripe), Payment Element checkout,
+      signed idempotent webhooks, saved card → automatic balance, security-deposit authorisations,
+      guest cancellation with tier refunds, manage-booking page ← *done, awaiting owner review*
+      (verified with the simulated provider; real Stripe test-mode run needs an `sk_test_` key)
 - [ ] Phase 5: admin panel
 - [ ] Phase 6: tests, security review, WCAG AA, Lighthouse, launch checklist
 
@@ -54,9 +57,13 @@ content/booking.ts        seasons, rates, min stay, arrival days, fees, taxes, d
 src/lib/booking/          pure logic (dates, pricing, availability, ical: shared client+server, tested)
                           + server: config loader, store (Postgres via DATABASE_URL / .data file), service,
                           actions (startBooking, confirmBooking), emails, jobs (iCal sync, daily)
-src/lib/payments/         PaymentProvider interface ("test" now, Stripe in Phase 4)
-src/components/booking/   BookingWidget (calendar), PriceSummary, CheckoutForm, StaySummary
-src/app/api/              booking/calendar, ical/[token] (export), cron/sync-calendars, cron/daily
+src/lib/payments/         provider.ts (interface), stripe.ts, test-provider.ts, service.ts (all payment rules,
+                          dependency-injected, idempotent), deps.ts (real wiring)
+src/components/booking/   BookingWidget (calendar), PriceSummary, CheckoutForm (details → PaymentStep),
+                          PaymentStep (Stripe Payment Element / simulated card), ManageActions, StaySummary
+src/app/[locale]/book/    page (calendar), checkout, confirmation (pending/failed/conflict states), manage
+src/app/api/              booking/calendar, ical/[token] (export), cron/sync-calendars, cron/daily,
+                          webhooks/stripe
 vercel.json               cron schedules
 src/i18n/                 routing (translated slugs), navigation, request config
 src/proxy.ts              next-intl locale negotiation (Next 16 Proxy)
@@ -102,7 +109,18 @@ src/lib/                  photos, seo (hreflang/OG), structured-data, cn
   (exclusion constraint on active reservations; check-out day is free). Holds expire after
   `holdMinutes`; `create_hold()` expires stale holds first. iCal: imports never wipe a source on a failed
   fetch; the export contains direct bookings + manual blocks only (never re-exports imports).
-  Guest links carry a random token; only its SHA-256 is stored.
+  Guest links carry a random token; only its SHA-256 is stored. Emails sent later carry a "manage" token =
+  HMAC(ref, `BOOKING_LINK_SECRET`) (`canAccess` accepts either).
+- **Payments**: all rules in `lib/payments/service.ts`, never in routes/components. Every entry point is
+  idempotent and safe under concurrency: `syncPayment()` applies the provider's state; the store's atomic
+  `transitionPayment` / `claimEmail` decide who acts (one email per event). Webhooks are the source of
+  truth (raw body, signature, dedupe by event id, re-fetch the intent); the confirmation and manage pages
+  also reconcile directly. A payment that succeeds after its hold expired confirms if the dates are still
+  free, otherwise it is refunded in full (`dates-taken`). Refund = tier % of what was paid, newest payment
+  first. Balance: off-session, idempotency key per reservation, no automatic retry after a decline (guest
+  pays from the manage page). Security deposit: manual-capture authorisation from check-in to check-out +
+  `securityDepositReleaseDays`, re-placed when it lapses. Stripe.js loads only on payment forms
+  (`@stripe/stripe-js/pure`). Live Stripe keys are refused outside the production deployment.
 - **Tests**: `npm test` (pure logic). Store integration tests run with `TEST_DATABASE_URL` pointing at a
   disposable Postgres with the migrations applied.
 - Secrets only in `.env.local` (git-ignored); document every variable in `.env.example`.
@@ -117,7 +135,7 @@ both with Greek, self-hosted by next/font. Motif: fine-line flowering agave stal
 ## Open items from the owner (TODO(owner) in content files)
 
 Real prices & seasons (`content/booking.ts`, all example values) · climate-fee amounts ·
-cancellation tiers · deposit % · arrival details for the pre-arrival email (`property.arrivalInfo`) ·
+cancellation tiers · deposit % · security deposit amount (€500 example) · Stripe account (test key, then live) · arrival details for the pre-arrival email (`property.arrivalInfo`) ·
 Operator name / ΑΦΜ for privacy & imprint (`siteConfig.legal`) · legal texts reviewed by a lawyer ·
 bed configuration (`property.bedrooms`) · check-in/out times · favourite tavernas (`content/location.ts`) ·
 Confirm capacity 8/4/3 · driving times (estimates marked `confirmed: false`) · contact email/phone
@@ -131,7 +149,7 @@ Photos are 1512px wide (chat-compressed); layouts are designed so they're never 
 npm run dev      # http://localhost:3000 → redirects to /en or /el
 npm run build && npm start
 npm run lint
-npm test         # booking logic (+ DB integration tests with TEST_DATABASE_URL)
+npm test         # booking + payment logic (+ DB integration tests with TEST_DATABASE_URL)
 SITE_MODE=live npm run build   # build with the booking calendar instead of the early-booking form
 npm run photos   # after editing content/photos.ts or adding raw photos
 npm run brand    # regenerate logo assets

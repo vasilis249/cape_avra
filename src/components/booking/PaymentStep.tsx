@@ -2,7 +2,9 @@
 
 import { useState, type FormEvent } from "react";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
-import { loadStripe, type Appearance, type Stripe } from "@stripe/stripe-js";
+import type { Appearance, Stripe } from "@stripe/stripe-js";
+// "pure": Stripe.js is fetched only when a Stripe payment form is shown, not on import
+import { loadStripe } from "@stripe/stripe-js/pure";
 import { completeTestPayment, type PaymentIntentInfo } from "@/lib/booking/actions";
 import { buttonClasses } from "@/components/ui/Button";
 import type { ClientConfig } from "@/lib/payments/provider";

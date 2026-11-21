@@ -43,8 +43,44 @@ Without these variables the forms on Vercel tell visitors to email you instead (
 5. `CRON_SECRET` = another long random string (Vercel uses it to call the scheduled jobs).
 6. Scheduled jobs are in `vercel.json`: calendar sync every 30 minutes (**needs Vercel Pro**; the free
    plan allows once a day) and a daily job at 06:17 UTC (holds, pre-arrival and review emails).
-7. Switch the site to live booking with `SITE_MODE=live` (or `mode: "live"` in `content/site.config.ts`).
-   Until Stripe is connected (Phase 4), keep it in preview on production.
+7. `BOOKING_LINK_SECRET` = another long random string (signs the "manage booking" links in emails).
+8. Switch the site to live booking with `SITE_MODE=live` (or `mode: "live"` in `content/site.config.ts`)
+   only after the Stripe steps below work in test mode.
+
+### 2c. Payments with Stripe (Phase 4)
+
+Everything below is done first in **test mode** (the "Test mode" switch in the Stripe dashboard).
+Live keys go only into the Vercel **Production** environment, at launch.
+
+1. **SQL Editor** → run `supabase/migrations/0003_payments.sql` (payments, webhook log, late confirmation).
+2. Stripe → **Developers → API keys** (test mode) → Vercel env (Preview + Development):
+   `STRIPE_SECRET_KEY=sk_test_…`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_…`, `PAYMENTS_PROVIDER=stripe`.
+3. Stripe → **Developers → Webhooks → Add endpoint**: `https://<your-domain>/api/webhooks/stripe`, events:
+   `payment_intent.succeeded`, `payment_intent.payment_failed`, `payment_intent.canceled`,
+   `payment_intent.amount_capturable_updated`, `payment_intent.processing`, `charge.refunded`.
+   Copy its **Signing secret** → `STRIPE_WEBHOOK_SECRET`. (One endpoint per environment: test and live
+   have different secrets.)
+4. Stripe → **Settings → Payment methods**: enable Cards, Apple Pay, Google Pay (and Link if you like).
+   **Payment method domains** → add your domain(s), so Apple Pay shows on Safari.
+5. Stripe → **Settings → Business → Public details**: statement descriptor "CAPE AVRA", support email.
+6. Test a booking end to end with card `4242 4242 4242 4242`, any future date, any CVC:
+   - confirmation page and both emails; Stripe → Payments shows the deposit with the card saved;
+   - `4000 0025 0000 3155` asks for 3-D Secure; `4000 0000 0000 9995` is declined;
+   - "Manage your booking" (link in the email) → cancel → the refund appears in Stripe;
+   - balance and security deposit run in the daily job: in test mode, book dates 31–35 days ahead
+     and call `/api/cron/daily` the next day (or wait for the schedule).
+7. At launch, in the Production environment only: live keys, a live webhook endpoint with its own
+   secret, then `SITE_MODE=live`.
+
+**How payments work.** Guests pay a deposit (`content/booking.ts` → `payment.depositPercent`) or, when
+the balance would already be due, the full amount. The card is saved with Stripe (we never see it); the
+balance is charged automatically `balanceDaysBeforeArrival` days before arrival. If that charge fails,
+the guest gets an email with a link to pay and you get a copy. The security deposit is an authorisation
+(not a charge) placed on the arrival day and released `securityDepositReleaseDays` after departure; card
+authorisations lapse after about 7 days, so for longer stays it is placed again automatically. Keeping
+part of it (damage) is done from the Stripe dashboard (Payments → the authorisation → Capture) until the
+admin panel (Phase 5). Cancellations refund the percentage of what was paid set in `cancellation`.
+Webhooks are the source of truth; if one is late, the confirmation page asks Stripe directly.
 
 ## 3. Resend (emails: notification to you + auto-reply to the guest)
 

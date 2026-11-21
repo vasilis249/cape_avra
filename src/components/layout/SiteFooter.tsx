@@ -5,7 +5,7 @@ import { Wordmark } from "@/components/brand/Wordmark";
 import { Container } from "@/components/ui/Layout";
 import { Link } from "@/i18n/navigation";
 import type { AppPathname } from "@/i18n/routing";
-import { siteConfig } from "@content/site.config";
+import { isPreview, siteConfig } from "@content/site.config";
 
 export async function SiteFooter() {
   const t = await getTranslations();
@@ -14,7 +14,7 @@ export async function SiteFooter() {
     { href: "/gallery", label: t("nav.gallery") },
     { href: "/location", label: t("nav.location") },
     { href: "/faq", label: t("nav.faq") },
-    { href: "/book", label: t("cta.earlyBookingShort") },
+    { href: "/book", label: isPreview ? t("cta.earlyBookingShort") : t("cta.bookShort") },
   ];
   const legal: { href: AppPathname; label: string }[] = [
     { href: "/legal/privacy", label: t("footer.privacy") },

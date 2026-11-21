@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { marked } from "marked";
 import type { Locale } from "@/i18n/routing";
+import { bookingSeed } from "@content/booking";
 import { capacity, stayTimes } from "@content/property";
 import { siteConfig } from "@content/site.config";
 
@@ -35,6 +36,7 @@ export async function loadMarkdownPage(locale: Locale, slug: string): Promise<Ma
     guests: String(capacity.guests),
     checkIn: stayTimes.checkIn ?? "—",
     checkOut: stayTimes.checkOut ?? "—",
+    ...paymentVars(locale),
   };
   const body = match[2].replace(/\{\{(\w+)\}\}/g, (_, k: string) => vars[k] ?? `{{${k}}}`);
 
@@ -44,5 +46,32 @@ export async function loadMarkdownPage(locale: Locale, slug: string): Promise<Ma
     updated: fm.updated ?? "",
     draft: fm.draft === "true",
     html: await marked.parse(body, { gfm: true }),
+  };
+}
+
+/** Payment and cancellation facts for the terms, from the booking config (one source of truth). */
+function paymentVars(locale: Locale): Record<string, string> {
+  const { payment, cancellation } = bookingSeed;
+  const euro = (n: number) => new Intl.NumberFormat(locale === "el" ? "el-GR" : "en-IE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
+  const tiers = [...cancellation].sort((a, b) => b.daysBefore - a.daysBefore);
+  const list = tiers
+    .map((t, i) => {
+      const prev = tiers[i - 1]?.daysBefore;
+      if (locale === "el") {
+        return t.daysBefore > 0
+          ? `- ${t.daysBefore} ημέρες ή περισσότερο πριν την άφιξη: επιστροφή ${t.refundPercent}% όσων έχετε πληρώσει`
+          : `- λιγότερο από ${prev ?? 0} ημέρες πριν την άφιξη: επιστροφή ${t.refundPercent}%`;
+      }
+      return t.daysBefore > 0
+        ? `- ${t.daysBefore} days or more before arrival: ${t.refundPercent}% of what you have paid is refunded`
+        : `- less than ${prev ?? 0} days before arrival: ${t.refundPercent}% refund`;
+    })
+    .join("\n");
+  return {
+    depositPercent: String(payment.depositPercent),
+    balanceDays: String(payment.balanceDaysBeforeArrival),
+    securityDeposit: euro(payment.securityDeposit),
+    releaseDays: String(payment.securityDepositReleaseDays),
+    cancellationList: list,
   };
 }

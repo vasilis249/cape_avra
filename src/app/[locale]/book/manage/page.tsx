@@ -100,7 +100,7 @@ async function Manage({ searchParams }: Pick<PageProps<"/[locale]/book/manage">,
 
         <dl className="mt-10 text-[0.9375rem]">
           <Row label={t("status")}>{r.status === "confirmed" ? t("statusConfirmed") : t("statusCancelled")}</Row>
-          <Row label={t("paid")}>{money(paid)}</Row>
+          <Row label={t("paid")}>{money(paid + refunded)}</Row>
           {refunded > 0 && <Row label={t("refunded")}>{money(refunded)}</Row>}
           {r.status === "confirmed" && (
             <Row label={t("balance")}>
