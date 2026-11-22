@@ -71,7 +71,7 @@ export default async function LocationPage() {
         <Section labelledBy="beaches-title" className="bg-sand">
           <Container className="grid gap-14 lg:grid-cols-12 lg:gap-10">
             <Reveal className="lg:col-span-5">
-              <Photo id="turquoise-shallows" fill sizes="(min-width: 1024px) 40vw, 100vw" className="aspect-[4/5]" />
+              <Photo id="house-from-the-beach" fill sizes="(min-width: 1024px) 40vw, 100vw" className="aspect-[4/5]" focal="40% 45%" />
             </Reveal>
             <div className="lg:col-span-6 lg:col-start-7">
               <Reveal>

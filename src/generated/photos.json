@@ -1,4 +1,46 @@
 {
+  "garden-from-above": {
+    "src": "/photos/garden-from-above.2960fda2.jpg",
+    "width": 1653,
+    "height": 1300,
+    "blurDataURL": "data:image/webp;base64,UklGRnAAAABXRUJQVlA4IGQAAAAwAgCdASoQAA0AA4BaJZAC7AED/yWT+2hNAAD2vAqX6/Jhoe1zFFvkZAhSJSMU3jBXwudGjP/vwBsgdt2c7a8crm0knYDzN95vPvHSc3k0kxdmb4UeSA/OV/8IIssG3KosxoAA",
+    "color": "#080808"
+  },
+  "gate-to-the-sea": {
+    "src": "/photos/gate-to-the-sea.19ed4dc9.jpg",
+    "width": 1774,
+    "height": 1240,
+    "blurDataURL": "data:image/webp;base64,UklGRlYAAABXRUJQVlA4IEoAAAAQAgCdASoQAAsAA4BaJQBOgCLv3V5BYJpAAP7w+3gk5lGchX+pgruHtticI5nE4sbzMwxvnArWTtis4CD1d3flE6iR3E0serJgAA==",
+    "color": "#a8c8e8"
+  },
+  "house-from-the-beach": {
+    "src": "/photos/house-from-the-beach.9b2141ae.jpg",
+    "width": 1932,
+    "height": 1752,
+    "blurDataURL": "data:image/webp;base64,UklGRlwAAABXRUJQVlA4IFAAAADwAQCdASoQAA8AA4BaJZgCdAEKSaOJgAAA4BxLc9k1bm1Gs1KjRL92oMDTnjKbOsEbozJ0ATgfxiKaF/Ghw65jNN0DZR7w4BtVFbqTmkhIAA==",
+    "color": "#686858"
+  },
+  "terrace-in-the-shade": {
+    "src": "/photos/terrace-in-the-shade.c195de1b.jpg",
+    "width": 1895,
+    "height": 1421,
+    "blurDataURL": "data:image/webp;base64,UklGRnIAAABXRUJQVlA4IGYAAABQAgCdASoQAAwAA4BaJYwCdAYv1kx52gykToAA/sdVUW/kdQzLCYtHZEXEyhMzC3ByPi5eY+DEb//Q4UG3tlHLjJFVqRvrUdpp73PxEGBNe6v/kU9mAPSHTl5OBiirgVVxflgAAAA=",
+    "color": "#080808"
+  },
+  "pergola-dining": {
+    "src": "/photos/pergola-dining.d6489fe1.jpg",
+    "width": 1895,
+    "height": 1300,
+    "blurDataURL": "data:image/webp;base64,UklGRm4AAABXRUJQVlA4IGIAAAAwAgCdASoQAAsAA4BaJagCdAYvXgc4aXoMwAD2vDtA46xlaflYTif/dgi8BNqdQBD4s96jNk3krnRdPwzEWnIQInzltkSR+wiMreIJe/1mcU8d0QWRtZ2Uca79WFlMVwAAAA==",
+    "color": "#98c8e8"
+  },
+  "chairs-facing-the-sea": {
+    "src": "/photos/chairs-facing-the-sea.d7b676bc.jpg",
+    "width": 1411,
+    "height": 907,
+    "blurDataURL": "data:image/webp;base64,UklGRm4AAABXRUJQVlA4IGIAAAAQAgCdASoQAAoAA4BaJQBOgMXc7SzhuzgAAP0CF2+7R17qkqTlmnX2frr6qfCz/MshkZD7VLjWburfZ0XEjdtlZcVfbI+68eeG/NFk94iBoKYd9ujpMm/5XkHPjepM/AAAAA==",
+    "color": "#080808"
+  },
   "blue-hour-agaves": {
     "src": "/photos/blue-hour-agaves.03365919.jpg",
     "width": 1512,
@@ -27,13 +69,6 @@
     "blurDataURL": "data:image/webp;base64,UklGRmwAAABXRUJQVlA4IGAAAADwAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JYwAAXvYNd3nseKdMie8AAP7sTX4QwN3EPDtzhPDeOsoe5k252/r7UdIUQX6q3xLHbtlRaE81/QSkvVdKTU0fX5glIWNAAAA=",
     "color": "#080808"
   },
-  "garden-sunset-lawn": {
-    "src": "/photos/garden-sunset-lawn.5be300b1.jpg",
-    "width": 907,
-    "height": 1129,
-    "blurDataURL": "data:image/webp;base64,UklGRm4AAABXRUJQVlA4IGIAAADQAwCdASoQABQAPu1iqU2ppaOiMAgBMB2JZQC06CPRx/1UpSbZGmAA4gQ8klxlqTGJBct6gmTt5XOQULnaxiIJXWpDZScTbLVKrQjqc70fyfq8tXtf2Z71fMCjDMdx6EAAAA==",
-    "color": "#080808"
-  },
   "agave-silhouettes": {
     "src": "/photos/agave-silhouettes.7a0c48f3.jpg",
     "width": 1401,
@@ -56,10 +91,10 @@
     "color": "#080808"
   },
   "afternoon-from-terrace": {
-    "src": "/photos/afternoon-from-terrace.c5a9f9fd.jpg",
+    "src": "/photos/afternoon-from-terrace.3e0e7d90.jpg",
     "width": 1512,
     "height": 1210,
-    "blurDataURL": "data:image/webp;base64,UklGRlYAAABXRUJQVlA4IEoAAACwAQCdASoQAA0AA4BaJagCdACxf0zoAP6pgsEG62SRRg//T+kMxREJnKz/qevnWcpEXvrlysGL0X4P8DWd3eIiWQEv1uY1ZkKAAA==",
+    "blurDataURL": "data:image/webp;base64,UklGRlYAAABXRUJQVlA4IEoAAACwAQCdASoQAA0AA4BaJaACdACylHcgAP6pgsEG62SRRT/6f0hmKIhHYFIrqFw/mwlL4lS5Asa4v+8mM3RbN3h/DQuPywMxPI0AAA==",
     "color": "#080808"
   }
 }

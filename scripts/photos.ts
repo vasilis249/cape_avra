@@ -60,6 +60,8 @@ async function processOne(entry: (typeof photos)[number]): Promise<ManifestEntry
       .toBuffer();
   }
 
+  if ("grade" in entry && entry.grade) buffer = await applyGrade(buffer, entry.grade);
+
   const master = await sharp(buffer)
     .resize({ width: MAX_WIDTH, withoutEnlargement: true })
     .jpeg({ quality: 88, mozjpeg: true, progressive: true })
@@ -83,6 +85,40 @@ async function processOne(entry: (typeof photos)[number]): Promise<ManifestEntry
     blurDataURL: `data:image/webp;base64,${blur.toString("base64")}`,
     color,
   };
+}
+
+type Grade = { brightness?: number; saturation?: number; contrast?: number; warmth?: number; highlights?: number };
+
+/**
+ * Restrained "editorial" grade for harsh phone photos: roll off blown midday highlights into a
+ * creamy white, a touch of contrast, calmer saturation, slight warmth. Each step re-encodes
+ * losslessly (PNG) so the next one starts from plain pixels.
+ */
+async function applyGrade(input: Buffer, g: Grade): Promise<Buffer<ArrayBuffer>> {
+  let buf = await sharp(input).png().toBuffer();
+  if (g.highlights) {
+    // shoulder above 60%: y = t + (x − t)·(1 − k·(x − t)/(1 − t)); pure white lands at 1 − k·0.4
+    const t = 0.6;
+    const k = g.highlights;
+    const lut = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) {
+      const x = i / 255;
+      const y = x <= t ? x : t + (x - t) * (1 - (k * (x - t)) / (1 - t));
+      lut[i] = Math.round(y * 255);
+    }
+    const { data, info } = await sharp(buf).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    for (let i = 0; i < data.length; i++) data[i] = lut[data[i]];
+    buf = await sharp(data, { raw: { width: info.width, height: info.height, channels: info.channels } }).png().toBuffer();
+  }
+  if (g.contrast && g.contrast !== 1) buf = await sharp(buf).linear(g.contrast, 128 * (1 - g.contrast)).png().toBuffer();
+  if ((g.brightness ?? 1) !== 1 || (g.saturation ?? 1) !== 1) {
+    buf = await sharp(buf).modulate({ brightness: g.brightness ?? 1, saturation: g.saturation ?? 1 }).png().toBuffer();
+  }
+  if (g.warmth) {
+    const w = g.warmth;
+    buf = await sharp(buf).recomb([[1 + w, 0, 0], [0, 1 + w * 0.3, 0], [0, 0, 1 - w]]).png().toBuffer();
+  }
+  return buf;
 }
 
 async function main() {

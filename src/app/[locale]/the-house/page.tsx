@@ -40,7 +40,7 @@ export default async function HousePage() {
     <>
       <SiteHeader variant="overlay" />
       <main id="main">
-        <PageHeader eyebrow={t("eyebrow")} title={t("title")} lead={t("lead", { season })} photo="garden-to-the-sea" focal="50% 70%">
+        <PageHeader eyebrow={t("eyebrow")} title={t("title")} lead={t("lead", { season })} photo="garden-from-above" focal="50% 0%">
           <ul className="mt-10 flex flex-wrap gap-x-8 gap-y-2 text-[0.9375rem] text-salt/85">
             {facts.map((f) => (
               <li key={f} className="flex items-center gap-3">
@@ -70,8 +70,8 @@ export default async function HousePage() {
               <p className="mt-6 text-[0.9375rem] text-ink-soft">{t("outdoorsNote")}</p>
             </Reveal>
             <Reveal className="grid grid-cols-2 gap-3 sm:gap-5 lg:col-span-6 lg:col-start-7" delay={150}>
-              <Photo id="garden-sunset-lawn" fill sizes="(min-width: 1024px) 24vw, 50vw" className="aspect-[4/5]" />
-              <Photo id="garden-gate-dusk" fill sizes="(min-width: 1024px) 24vw, 50vw" className="mt-12 aspect-[4/5]" />
+              <Photo id="terrace-in-the-shade" fill sizes="(min-width: 1024px) 24vw, 50vw" className="aspect-[4/5]" focal="30% 55%" />
+              <Photo id="pergola-dining" fill sizes="(min-width: 1024px) 24vw, 50vw" className="mt-12 aspect-[4/5]" focal="45% 60%" />
             </Reveal>
           </Container>
         </Section>

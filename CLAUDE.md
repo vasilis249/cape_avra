@@ -96,7 +96,11 @@ src/lib/                  photos, seo (hreflang/OG), structured-data, cn
 - **No copy in components.** Strings → `content/messages/*.json`; facts → `content/*.ts`.
   Greek and English must be kept in sync (same keys).
 - **Photos**: add to `content/photos.ts`, run `npm run photos`, reference by id via `<Photo id=… sizes=…/>`.
-  Never edit files in `photos/raw`. Output is EXIF/GPS-free and content-hashed.
+  Never edit files in `photos/raw`. Output is EXIF/GPS-free and content-hashed. Optional `grade`
+  (highlights roll-off, contrast, saturation, warmth) gives harsh midday phone shots a calmer, warmer
+  "editorial" look in the web version only; keep it subtle. Registry order = gallery order (strongest first).
+  Avoid showing the pre-renovation façade (bare concrete upper floor) or the pergola canvas from above
+  (its diamond openings read as tears); frame with `focal` instead.
 - **Hero video**: full-screen, one seamless loop built from several clips (`content/video.ts`
   `clips`: sunset pan with the agaves, played in reverse → blue-hour sea, HDR tone-mapped),
   joined by 2.5 s dissolves, with a final dissolve back into the opening so it never restarts
@@ -181,9 +185,11 @@ cancellation tiers · deposit % · security deposit amount (€500 example) · S
 Operator name / ΑΦΜ for privacy & imprint (`siteConfig.legal`) · legal texts reviewed by a lawyer ·
 bed configuration (`property.bedrooms`) · check-in/out times · favourite tavernas (`content/location.ts`) ·
 Confirm capacity 8/4/3 · driving times (estimates marked `confirmed: false`) · contact email/phone
-(WhatsApp/Viber) · ΑΜΑ number · garden photos without the house · interior photos after renovation ·
-whether the beach is reached via the garden gate (copy says "your own gate to the sea").
-Photos are 1512px wide (chat-compressed); layouts are designed so they're never stretched beyond ~1.1×.
+(WhatsApp/Viber) · ΑΜΑ number · interior photos after renovation ·
+whether the beach is reached via the garden gate (copy says "your own gate to the sea"; the Nov 2026
+photos show the gate in the sea-side wall and a path down to the beach below the house: confirm).
+Photos: the first set is 1512px wide, the Nov 2026 set 2016px (chat-compressed); layouts are designed so
+they're never stretched beyond ~1.1×. Interior photos still to come after the renovation.
 
 ## Commands
 

@@ -35,18 +35,18 @@ export async function GalleryTeaser() {
           </Reveal>
           <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:col-span-7">
             <Reveal delay={100}>
-              <Photo id="turquoise-shallows" fill sizes="(min-width: 1024px) 28vw, 50vw" className="aspect-square" />
+              <Photo id="garden-from-above" fill sizes="(min-width: 1024px) 28vw, 50vw" className="aspect-square" focal="0% 50%" />
             </Reveal>
             <Reveal delay={180}>
               <Photo id="sunset-clouds" fill sizes="(min-width: 1024px) 28vw, 50vw" className="aspect-square" focal="50% 45%" />
             </Reveal>
             <Reveal className="col-span-2" delay={240}>
               <Photo
-                id="afternoon-from-terrace"
+                id="terrace-in-the-shade"
                 fill
                 sizes="(min-width: 1024px) 56vw, 100vw"
                 className="aspect-[16/10]"
-                focal="50% 50%"
+                focal="50% 55%"
               />
             </Reveal>
           </div>

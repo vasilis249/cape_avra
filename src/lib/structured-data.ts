@@ -9,7 +9,7 @@ import { siteConfig } from "@content/site.config";
  * (added in Phase 3 from real data), no exact coordinates until confirmed.
  */
 export function vacationRentalJsonLd(locale: Locale, url: string, description: string) {
-  const images = (["blue-hour-agaves", "garden-to-the-sea", "sunset-clouds", "garden-sunset-lawn"] as const).map(
+  const images = (["garden-from-above", "blue-hour-agaves", "house-from-the-beach", "gate-to-the-sea", "garden-to-the-sea", "sunset-clouds"] as const).map(
     (id) => siteUrl + getPhoto(id, locale).src,
   );
   return {

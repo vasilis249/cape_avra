@@ -4,10 +4,10 @@ import { Photo } from "@/components/media/Photo";
 import { Reveal } from "@/components/motion/Reveal";
 import { Container, Eyebrow, Hairline, Section } from "@/components/ui/Layout";
 
-const items: { key: "sea" | "garden" | "privacy"; photo: PhotoId }[] = [
-  { key: "sea", photo: "sun-on-the-water" },
-  { key: "garden", photo: "garden-sunset-lawn" },
-  { key: "privacy", photo: "garden-gate-dusk" },
+const items: { key: "sea" | "garden" | "privacy"; photo: PhotoId; focal?: string }[] = [
+  { key: "sea", photo: "house-from-the-beach", focal: "40% 45%" },
+  { key: "garden", photo: "pergola-dining", focal: "48% 60%" },
+  { key: "privacy", photo: "gate-to-the-sea", focal: "50% 50%" },
 ];
 
 export async function Highlights() {
@@ -35,6 +35,7 @@ export async function Highlights() {
             <Reveal delay={i * 120}>
               <Photo
                 id={item.photo}
+                focal={item.focal}
                 fill
                 sizes="(min-width: 1024px) 30vw, 82vw"
                 className="aspect-[4/5]"
