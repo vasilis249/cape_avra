@@ -185,9 +185,8 @@ cancellation tiers · deposit % · security deposit amount (€500 example) · S
 Operator name / ΑΦΜ for privacy & imprint (`siteConfig.legal`) · legal texts reviewed by a lawyer ·
 bed configuration (`property.bedrooms`) · check-in/out times · favourite tavernas (`content/location.ts`) ·
 Confirm capacity 8/4/3 · driving times (estimates marked `confirmed: false`) · contact email/phone
-(WhatsApp/Viber) · ΑΜΑ number · interior photos after renovation ·
-whether the beach is reached via the garden gate (copy says "your own gate to the sea"; the Nov 2026
-photos show the gate in the sea-side wall and a path down to the beach below the house: confirm).
+(WhatsApp/Viber) · ΑΜΑ number · interior photos after renovation.
+Confirmed by the owner: the garden gate in the sea-side wall leads down to the beach (Nov 2026).
 Photos: the first set is 1512px wide, the Nov 2026 set 2016px (chat-compressed); layouts are designed so
 they're never stretched beyond ~1.1×. Interior photos still to come after the renovation.
 

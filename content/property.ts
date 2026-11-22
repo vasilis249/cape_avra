@@ -49,7 +49,7 @@ export const houseRules = ["maxGuests", "noParties", "quietHours", "noSmoking", 
  * Keys map to messages `places.<key>`.
  */
 export const distances: { key: string; minutes: number | null; confirmed: boolean }[] = [
-  { key: "beach", minutes: null, confirmed: false }, // shown as "below the garden"
+  { key: "beach", minutes: null, confirmed: true }, // "below the garden": through the garden gate (owner, Nov 2026)
   { key: "prevezaTown", minutes: 10, confirmed: false },
   { key: "airport", minutes: 15, confirmed: true }, // from the brief
   { key: "nikopolis", minutes: 10, confirmed: false },

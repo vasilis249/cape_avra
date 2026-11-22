@@ -234,7 +234,7 @@
     "beaches": {
       "below": {
         "title": "The beach below the house",
-        "text": "A few steps from the garden. Like every beach in Greece it is public, and outside high summer it is usually quiet."
+        "text": "Through the garden gate and a few steps down. Like every beach in Greece it is public, and outside high summer it is usually quiet."
       },
       "monolithi": {
         "title": "Monolithi",
@@ -309,7 +309,7 @@
       },
       {
         "q": "How close is the beach?",
-        "a": "The beach is just below the garden. It is a public beach, as all beaches in Greece are."
+        "a": "The beach is just below the garden: through the garden gate and a few steps down. It is a public beach, as all beaches in Greece are."
       },
       {
         "q": "Do we need a car?",
